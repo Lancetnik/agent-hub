@@ -6,6 +6,7 @@ use std::{
 };
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
+use tokio::sync::broadcast;
 
 use crate::{
     messaging::{
@@ -40,6 +41,7 @@ impl From<rusqlite::Error> for StoreError {
 #[derive(Clone)]
 pub(crate) struct Store {
     connection: Arc<Mutex<Connection>>,
+    changes: broadcast::Sender<String>,
 }
 
 impl Store {
@@ -71,6 +73,7 @@ impl Store {
         )?;
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
+            changes: broadcast::channel(256).0,
         })
     }
 
@@ -137,39 +140,40 @@ impl Store {
     }
 
     pub async fn send(&self, request: SendMessageRequest) -> Result<Message, StoreError> {
-        self.interact(move |connection| {
-            for (field, value) in [
-                ("message_id", &request.message_id),
-                ("sender_id", &request.sender_id),
-                ("recipient_id", &request.recipient_id),
-            ] {
-                nonblank(field, value)?;
-            }
-            if let Some(id) = &request.correlation_id {
-                nonblank("correlation_id", id)?;
-            }
-
-            // Serialize competing sends, including other connections to this database.
-            let transaction =
-                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            registered(&transaction, "sender_id", &request.sender_id)?;
-            registered(&transaction, "recipient_id", &request.recipient_id)?;
-            if let Some(existing) = lookup_message(&transaction, &request.message_id)? {
-                if existing.sender_id != request.sender_id
-                    || existing.recipient_id != request.recipient_id
-                    || existing.payload != request.payload
-                    || existing.correlation_id != request.correlation_id
-                {
-                    return Err(StoreError::Invalid(format!(
-                        "message_id '{}' already exists with different data",
-                        request.message_id
-                    )));
+        let message = self
+            .interact(move |connection| {
+                for (field, value) in [
+                    ("message_id", &request.message_id),
+                    ("sender_id", &request.sender_id),
+                    ("recipient_id", &request.recipient_id),
+                ] {
+                    nonblank(field, value)?;
                 }
-                transaction.commit()?;
-                return Ok(existing);
-            }
+                if let Some(id) = &request.correlation_id {
+                    nonblank("correlation_id", id)?;
+                }
 
-            transaction.execute(
+                // Serialize competing sends, including other connections to this database.
+                let transaction =
+                    connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                registered(&transaction, "sender_id", &request.sender_id)?;
+                registered(&transaction, "recipient_id", &request.recipient_id)?;
+                if let Some(existing) = lookup_message(&transaction, &request.message_id)? {
+                    if existing.sender_id != request.sender_id
+                        || existing.recipient_id != request.recipient_id
+                        || existing.payload != request.payload
+                        || existing.correlation_id != request.correlation_id
+                    {
+                        return Err(StoreError::Invalid(format!(
+                            "message_id '{}' already exists with different data",
+                            request.message_id
+                        )));
+                    }
+                    transaction.commit()?;
+                    return Ok(existing);
+                }
+
+                transaction.execute(
                 "INSERT INTO messages(message_id, sender_id, recipient_id, payload, correlation_id)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![
@@ -180,19 +184,28 @@ impl Store {
                     request.correlation_id,
                 ],
             )?;
-            let message = Message {
-                message_id: request.message_id,
-                sender_id: request.sender_id,
-                recipient_id: request.recipient_id,
-                payload: request.payload,
-                correlation_id: request.correlation_id,
-                sequence: transaction.last_insert_rowid(),
-                acknowledged: false,
-            };
-            transaction.commit()?;
-            Ok(message)
-        })
-        .await
+                let message = Message {
+                    message_id: request.message_id,
+                    sender_id: request.sender_id,
+                    recipient_id: request.recipient_id,
+                    payload: request.payload,
+                    correlation_id: request.correlation_id,
+                    sequence: transaction.last_insert_rowid(),
+                    acknowledged: false,
+                };
+                transaction.commit()?;
+                Ok(message)
+            })
+            .await?;
+        // A signal is only a hint. Publish after commit; inbox/ACK remains authoritative.
+        if !message.acknowledged {
+            let _ = self.changes.send(message.recipient_id.clone());
+        }
+        Ok(message)
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<String> {
+        self.changes.subscribe()
     }
 
     pub async fn read_inbox(

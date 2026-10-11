@@ -1,0 +1,169 @@
+{
+  "version": "codex-cli 0.162.1",
+  "orchestrator_thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+  "worker_thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+  "worker_sse_connections": 2,
+  "events": {
+    "orchestrator": [
+      {
+        "type": "session_ready",
+        "session_id": "orchestrator",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "resumed": false
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-abbf-7f33-9d2c-10eac8bf753b",
+        "status": "completed",
+        "final_text": "WAITING"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"worker\",\"01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0\",\"01a12bdb-ddae-7051-9519-a8d624cc246d\"]",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-efd3-7a72-8bdf-d211d586b5be"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-efd3-7a72-8bdf-d211d586b5be",
+        "status": "completed",
+        "final_text": "41"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-fad8-79b3-b6b5-393fbe9ff389",
+        "status": "completed",
+        "final_text": "BUSY_DONE"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"worker\",\"01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0\",\"01a12bdc-47ea-7d32-8525-d7897410361a\"]",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-63bd-75e2-a0f3-9c7203c58590"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-63bd-75e2-a0f3-9c7203c58590",
+        "status": "completed",
+        "final_text": "43"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-6f23-7d00-99a7-da997eeb3c21",
+        "status": "completed",
+        "final_text": "OFFLINE_READY"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-abbf-7f33-9d2c-10eac8bf753b",
+        "status": "completed",
+        "final_text": "WAITING"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-efd3-7a72-8bdf-d211d586b5be",
+        "status": "completed",
+        "final_text": "41"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdb-fad8-79b3-b6b5-393fbe9ff389",
+        "status": "completed",
+        "final_text": "BUSY_DONE"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-63bd-75e2-a0f3-9c7203c58590",
+        "status": "completed",
+        "final_text": "43"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-6f23-7d00-99a7-da997eeb3c21",
+        "status": "completed",
+        "final_text": "OFFLINE_READY"
+      },
+      {
+        "type": "session_ready",
+        "session_id": "orchestrator",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "resumed": true
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"worker\",\"01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0\",\"01a12bdc-8713-7843-ad7a-0602b930a5cb\"]",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-94c7-7e91-89ea-70dbe265411d"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-a7ac-76f2-90c2-80cbdcab416c",
+        "turn_id": "01a12bdc-94c7-7e91-89ea-70dbe265411d",
+        "status": "completed",
+        "final_text": "45"
+      }
+    ],
+    "worker": [
+      {
+        "type": "session_ready",
+        "session_id": "worker",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "resumed": false
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "idle-assignment",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "turn_id": "01a12bdb-ddae-7051-9519-a8d624cc246d"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "turn_id": "01a12bdb-ddae-7051-9519-a8d624cc246d",
+        "status": "completed",
+        "final_text": "4"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "busy-assignment",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "turn_id": "01a12bdc-47ea-7d32-8525-d7897410361a"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "turn_id": "01a12bdc-47ea-7d32-8525-d7897410361a",
+        "status": "completed",
+        "final_text": "6"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "reconnect-assignment",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "turn_id": "01a12bdc-8713-7843-ad7a-0602b930a5cb"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12bdb-ab8b-7b91-a3e4-e81ee34c07c0",
+        "turn_id": "01a12bdc-8713-7843-ad7a-0602b930a5cb",
+        "status": "completed",
+        "final_text": "8"
+      }
+    ]
+  },
+  "scenarios": [
+    "idle",
+    "busy",
+    "adapter and Hub restart"
+  ]
+}

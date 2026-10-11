@@ -1,3 +1,4 @@
+mod delivery;
 mod mcp;
 mod messaging;
 mod sessions;
@@ -7,7 +8,7 @@ mod turns;
 use std::path::Path;
 
 use axum::{
-    Router,
+    Extension, Router,
     routing::{get, post},
 };
 use rmcp::transport::streamable_http_server::{
@@ -28,13 +29,17 @@ pub fn router(
         LocalSessionManager::default().into(),
         StreamableHttpServerConfig::default()
             .with_json_response(true)
-            .with_cancellation_token(cancellation),
+            .with_cancellation_token(cancellation.clone()),
     );
 
     Ok(Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/sessions", post(sessions::register))
         .route("/turn-results", post(turns::record))
+        .route("/sessions/{session_id}/inbox", get(delivery::inbox))
+        .route("/sessions/{session_id}/ack", post(delivery::ack))
+        .route("/sessions/{session_id}/events", get(delivery::events))
         .nest_service("/mcp", service)
+        .layer(Extension(cancellation))
         .with_state(store))
 }

@@ -1,0 +1,9 @@
+{
+  "version": "codex-cli 0.162.1",
+  "thread_id": "01a12bd4-13ca-7b42-adf5-a6b176930253",
+  "first_turn_id": "01a12bd4-17bd-70d2-a87f-26fac2baa330",
+  "second_turn_id": "01a12bd4-27c2-71e3-8755-df37c6d27d56",
+  "acceptance_status": "inProgress",
+  "final_text": "42",
+  "busy_policy": "external queue until turn/completed"
+}
