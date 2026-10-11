@@ -1,0 +1,2 @@
+# Only the ordinary CLI hook integration needs this Unix WebSocket client.
+websockets>=15,<17

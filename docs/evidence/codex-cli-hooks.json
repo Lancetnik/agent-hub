@@ -1,0 +1,159 @@
+{
+  "version": "codex-cli 0.162.1",
+  "orchestrator_thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+  "worker_thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+  "scenarios": [
+    "hook registration",
+    "idle",
+    "busy",
+    "Hub restart and bridge reconnect",
+    "CLI user input",
+    "SessionEnd"
+  ],
+  "permissions": {
+    "approvalPolicy": "never",
+    "sandbox": "readOnly",
+    "preserved": true
+  },
+  "events": {
+    "orchestrator": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c16-98a3-7081-90cc-3208ba6d2146",
+        "status": "completed",
+        "final_text": "READY"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c16-eb62-7dc0-8296-eccae330e09b",
+        "status": "completed",
+        "final_text": "WAITING"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"01a12c16-991a-7230-9669-dfd26d8fdaa0\",\"01a12c16-991a-7230-9669-dfd26d8fdaa0\",\"01a12c17-0bcc-7761-8350-ad851d00589d\"]",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "queue_id": "01a12c17-2b1c-7c13-a30d-eb18c6ef8bb2"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c17-2b1c-7c13-a30d-eb3d609258e3",
+        "status": "completed",
+        "final_text": "41"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c17-3bb3-7ac2-ad12-145fbb412586",
+        "status": "completed",
+        "final_text": "BUSY_DONE"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"01a12c16-991a-7230-9669-dfd26d8fdaa0\",\"01a12c16-991a-7230-9669-dfd26d8fdaa0\",\"01a12c17-5b11-7f93-aec7-860dc2b0fca5\"]",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "queue_id": "01a12c17-766b-7792-b0e1-4f7e993e6753"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c17-766c-7183-84b1-628e8a8a66b4",
+        "status": "completed",
+        "final_text": "43"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c17-82a8-70f1-893d-ee30a97b08aa",
+        "status": "completed",
+        "final_text": "OFFLINE_READY"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"01a12c16-991a-7230-9669-dfd26d8fdaa0\",\"01a12c16-991a-7230-9669-dfd26d8fdaa0\",\"01a12c17-9663-72f0-bedd-d6d986e08320\"]",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "queue_id": "01a12c17-a23e-7882-b468-6ade99f52b43"
+      },
+      {
+        "type": "bridge_connected",
+        "session_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c17-a23e-7882-b468-6af7bbaf51e0",
+        "status": "completed",
+        "final_text": "45"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-9876-7852-86d0-fa3000d1217e",
+        "turn_id": "01a12c17-aa86-7980-8f0d-00e89171e025",
+        "status": "completed",
+        "final_text": "44"
+      }
+    ],
+    "worker": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "turn_id": "01a12c16-996a-7710-9583-15bfc019a09e",
+        "status": "completed",
+        "final_text": "WORKER_READY"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "hooks-idle",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "queue_id": "01a12c17-0bcb-7bf3-a954-c94d24a1110d"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "turn_id": "01a12c17-0bcc-7761-8350-ad851d00589d",
+        "status": "completed",
+        "final_text": "4"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "hooks-busy",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "queue_id": "01a12c17-5b10-7ec1-b3e2-8f57f208cd03"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "turn_id": "01a12c17-5b11-7f93-aec7-860dc2b0fca5",
+        "status": "completed",
+        "final_text": "6"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "hooks-reconnect",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "queue_id": "01a12c17-9662-7de3-abfe-4f6e05ccbcbe"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12c16-991a-7230-9669-dfd26d8fdaa0",
+        "turn_id": "01a12c17-9663-72f0-bedd-d6d986e08320",
+        "status": "completed",
+        "final_text": "8"
+      }
+    ]
+  }
+}

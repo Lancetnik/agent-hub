@@ -1,5 +1,6 @@
 /target/
 __pycache__/
+.venv/
 .DS_Store
 *.sqlite3
 *.sqlite3-wal

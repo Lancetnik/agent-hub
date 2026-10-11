@@ -16,11 +16,13 @@ from urllib.request import Request, urlopen
 
 
 class AppServer:
-    def __init__(self, codex, url, *, command=None, environment=None, on_notification=None):
+    def __init__(self, codex, url, *, command=None, environment=None, on_notification=None,
+                 answer_requests=True):
         self.next_id = 0
         self.messages = queue.Queue()
         self.notifications = []
         self.on_notification = on_notification
+        self.answer_requests = answer_requests
         self.stderr = tempfile.TemporaryFile(mode="w+t")
         try:
             self.process = subprocess.Popen(
@@ -88,9 +90,10 @@ class AppServer:
         if "method" in message:
             if "id" in message:
                 # These probes do not approve tools, input requests, or elicitation.
-                self.send({"id": message["id"], "error": {
-                    "code": -32601, "message": "Unsupported in Agent Hub integration",
-                }})
+                if self.answer_requests:
+                    self.send({"id": message["id"], "error": {
+                        "code": -32601, "message": "Unsupported in Agent Hub integration",
+                    }})
             else:
                 self.notifications.append(message)
                 if self.on_notification:

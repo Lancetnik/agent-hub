@@ -39,12 +39,12 @@ class Outbox:
                 (key, url, encoded),
             )
 
-    def flush(self):
+    def flush(self, timeout=10):
         for sequence, url, body in self.db.execute(
             "SELECT sequence, url, body FROM pending ORDER BY sequence"
         ).fetchall():
             request = Request(url, data=body.encode(), headers={"Content-Type": "application/json"})
-            with urlopen(request, timeout=10) as response:
+            with urlopen(request, timeout=timeout) as response:
                 # Consume the response before forgetting the durable event.
                 json.load(response)
             with self.db:

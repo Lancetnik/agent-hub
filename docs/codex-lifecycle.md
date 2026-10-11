@@ -1,5 +1,9 @@
 # Подключение результатов хода Codex
 
+Обычный интерактивный CLI теперь поддержан отдельной
+[интеграцией через хуки](codex-hooks.md), подключающейся к его shared daemon.
+Ниже сохранены проверка и ограничения stdio-адаптера третьего этапа.
+
 Проверено 11 октября 2026 года на `codex-cli 0.162.1` для этапов
 [Prepare milestone 3: verify real Codex lifecycle callbacks](https://github.com/Lancetnik/agent-hub/issues/12)
 и [Milestone 3: automatic delivery of worker turn results](https://github.com/Lancetnik/agent-hub/issues/7).
