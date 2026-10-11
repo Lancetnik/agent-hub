@@ -14,7 +14,7 @@ async fn http_health_and_mcp_round_trip() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let cancellation = CancellationToken::new();
-        let app = agent_hub::router(cancellation.clone());
+        let app = agent_hub::router(cancellation.clone(), ":memory:").unwrap();
         let shutdown = cancellation.clone();
         let server = tokio::spawn(async move {
             axum::serve(listener, app)
@@ -56,7 +56,14 @@ async fn http_health_and_mcp_round_trip() {
             names.sort_unstable();
             assert_eq!(
                 names,
-                ["hub_list_sessions", "hub_lookup_session", "hub_ping"]
+                [
+                    "hub_ack_message",
+                    "hub_list_sessions",
+                    "hub_lookup_session",
+                    "hub_ping",
+                    "hub_read_inbox",
+                    "hub_send_message",
+                ]
             );
             assert!(tools.iter().all(|tool| tool.output_schema.is_some()));
             let message = "Привет, Codex! 🦀";

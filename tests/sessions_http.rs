@@ -27,7 +27,7 @@ async fn http_registration_is_shared_by_mcp_clients_and_upserts_by_stable_id() {
         let base = format!("http://{}", listener.local_addr().unwrap());
         let cancellation = CancellationToken::new();
         let shutdown = cancellation.clone();
-        let app = agent_hub::router(cancellation.clone());
+        let app = agent_hub::router(cancellation.clone(), ":memory:").unwrap();
         let server = tokio::spawn(async move {
             axum::serve(listener, app)
                 .with_graceful_shutdown(shutdown.cancelled_owned())

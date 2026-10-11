@@ -17,9 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(address).await?;
     let address = listener.local_addr()?;
     let cancellation = CancellationToken::new();
-    let app = agent_hub::router(cancellation.clone());
+    let database = std::env::var("AGENT_HUB_DB").unwrap_or_else(|_| "agent-hub.sqlite3".into());
+    let app = agent_hub::router(cancellation.clone(), &database)?;
 
-    tracing::info!(%address, "Agent Hub listening; MCP at /mcp, health at /health");
+    tracing::info!(%address, %database, "Agent Hub listening; MCP at /mcp, health at /health");
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             if let Err(error) = tokio::signal::ctrl_c().await {

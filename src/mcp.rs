@@ -6,11 +6,18 @@ use rmcp::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::sessions::{Session, SessionRegistry};
+use crate::{
+    messaging::{
+        AckMessageRequest, AckMessageResponse, ReadInboxRequest, ReadInboxResponse,
+        SendMessageRequest, SendMessageResponse,
+    },
+    sessions::Session,
+    store::{Store, StoreError},
+};
 
 #[derive(Clone)]
 pub struct AgentHub {
-    registry: SessionRegistry,
+    store: Store,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -44,8 +51,8 @@ pub struct LookupSessionResponse {
 
 #[tool_router]
 impl AgentHub {
-    pub fn new(registry: SessionRegistry) -> Self {
-        Self { registry }
+    pub fn new(store: Store) -> Self {
+        Self { store }
     }
 
     #[tool(
@@ -75,10 +82,10 @@ impl AgentHub {
             open_world_hint = false
         )
     )]
-    fn hub_list_sessions(&self) -> Json<ListSessionsResponse> {
-        Json(ListSessionsResponse {
-            sessions: self.registry.list(),
-        })
+    async fn hub_list_sessions(&self) -> Result<Json<ListSessionsResponse>, String> {
+        Ok(Json(ListSessionsResponse {
+            sessions: self.store.list_sessions().await.map_err(tool_error)?,
+        }))
     }
 
     #[tool(
@@ -90,13 +97,81 @@ impl AgentHub {
             open_world_hint = false
         )
     )]
-    fn hub_lookup_session(
+    async fn hub_lookup_session(
         &self,
         Parameters(request): Parameters<LookupSessionRequest>,
-    ) -> Json<LookupSessionResponse> {
-        Json(LookupSessionResponse {
-            session: self.registry.lookup(&request.session_id),
-        })
+    ) -> Result<Json<LookupSessionResponse>, String> {
+        Ok(Json(LookupSessionResponse {
+            session: self
+                .store
+                .lookup_session(request.session_id)
+                .await
+                .map_err(tool_error)?,
+        }))
+    }
+
+    #[tool(
+        description = "Send a durable direct message between registered agent sessions. Supply your sender_id and the recipient_id explicitly. Choose a globally unique message_id and reuse it with identical data on retries; changed data with the same ID is rejected. Optional correlation_id connects requests and replies. A successful result means Hub committed the message, not that the recipient read it or completed a task.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn hub_send_message(
+        &self,
+        Parameters(request): Parameters<SendMessageRequest>,
+    ) -> Result<Json<SendMessageResponse>, String> {
+        Ok(Json(SendMessageResponse {
+            message: self.store.send(request).await.map_err(tool_error)?,
+        }))
+    }
+
+    #[tool(
+        description = "Read a registered session's unacknowledged inbox, ordered by persisted sequence. Reading does not acknowledge messages: they remain available until hub_ack_message. Omit cursor on every new poll to retry earlier unacknowledged messages; use next_cursor only for subsequent pages of the same scan. limit defaults to 100 and must be from 1 to 1000.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn hub_read_inbox(
+        &self,
+        Parameters(request): Parameters<ReadInboxRequest>,
+    ) -> Result<Json<ReadInboxResponse>, String> {
+        self.store
+            .read_inbox(request)
+            .await
+            .map(Json)
+            .map_err(tool_error)
+    }
+
+    #[tool(
+        description = "Explicitly acknowledge acceptance of a message as its recipient. session_id must match the recipient_id. Repeated ACK succeeds. The message leaves the pending inbox but remains stored, and ACK survives a Hub restart. ACK does not establish successful completion of a task.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn hub_ack_message(
+        &self,
+        Parameters(request): Parameters<AckMessageRequest>,
+    ) -> Result<Json<AckMessageResponse>, String> {
+        self.store.ack(request).await.map(Json).map_err(tool_error)
+    }
+}
+
+fn tool_error(error: StoreError) -> String {
+    match error {
+        StoreError::Invalid(message) => message,
+        error => {
+            tracing::error!(%error, "Hub database operation failed");
+            "database operation failed".into()
+        }
     }
 }
 
@@ -108,7 +183,11 @@ impl ServerHandler for AgentHub {
             .with_instructions(
                 "Use hub_ping to verify connectivity, hub_list_sessions to find agent sessions, \
                  and hub_lookup_session to look up a stable session_id. External integrations \
-                 register sessions over HTTP. Agent session IDs are independent of MCP connections.",
+                 register sessions over HTTP. Agent session IDs are independent of MCP connections. \
+                 Use hub_send_message for durable direct messages, hub_read_inbox for pending messages, \
+                 and hub_ack_message to explicitly confirm acceptance as the recipient. Reuse the \
+                 message_id and data when retrying a send. Read does not ACK; omit cursor on a new poll. \
+                 ACK is acceptance, not task success. Sessions, messages, and ACKs survive restarts.",
             )
     }
 }
