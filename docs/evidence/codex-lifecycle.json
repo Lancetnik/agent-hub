@@ -1,0 +1,60 @@
+{
+  "version": "codex-cli 0.162.1",
+  "continued_by_stop": true,
+  "callbacks": [
+    {
+      "hook_event_name": "SessionStart",
+      "session_id": "01a12bc4-c195-7602-8b7f-fa67b7789c1c",
+      "source": "startup"
+    },
+    {
+      "hook_event_name": "Stop",
+      "session_id": "01a12bc4-c195-7602-8b7f-fa67b7789c1c",
+      "turn_id": "01a12bc4-c57c-74f0-9ba7-4641110cad0c",
+      "last_assistant_message": "4",
+      "stop_hook_active": false
+    },
+    {
+      "hook_event_name": "Stop",
+      "session_id": "01a12bc4-c195-7602-8b7f-fa67b7789c1c",
+      "turn_id": "01a12bc4-c57c-74f0-9ba7-4641110cad0c",
+      "last_assistant_message": "5",
+      "stop_hook_active": true
+    }
+  ],
+  "terminal": {
+    "threadId": "01a12bc4-c195-7602-8b7f-fa67b7789c1c",
+    "turn": {
+      "id": "01a12bc4-c57c-74f0-9ba7-4641110cad0c",
+      "rootTurnId": "01a12bc4-c57c-74f0-9ba7-4641110cad0c",
+      "items": [
+        {
+          "type": "agentMessage",
+          "id": "msg_0c3a1cadeec1dfa2016acbb78943008191a57bee45d554a384",
+          "text": "5",
+          "phase": "final_answer",
+          "memoryCitation": null,
+          "delivery": null,
+          "questions": null
+        }
+      ],
+      "itemsView": "summary",
+      "status": "completed",
+      "error": null,
+      "startedAt": 1791735678,
+      "completedAt": 1791735689,
+      "durationMs": 11055
+    }
+  },
+  "result": {
+    "session_id": "worker",
+    "runtime_id": "01a12bc4-c195-7602-8b7f-fa67b7789c1c",
+    "turn_id": "01a12bc4-c57c-74f0-9ba7-4641110cad0c",
+    "recipient_id": "orchestrator",
+    "correlation_id": "assignment-1",
+    "status": "completed",
+    "final_text": "5",
+    "artifact_refs": [],
+    "error": null
+  }
+}

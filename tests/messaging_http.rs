@@ -112,6 +112,242 @@ async fn rejected(client: &Peer<RoleClient>, tool: &str, arguments: Value, expec
     assert!(text.contains(expected), "Expected {expected:?} in {text}");
 }
 
+async fn post_turn(hub: &Hub, event: &Value) -> (reqwest::StatusCode, Value) {
+    let response = reqwest::Client::new()
+        .post(format!("{}/turn-results", hub.base))
+        .json(event)
+        .send()
+        .await
+        .unwrap();
+    let status = response.status();
+    (status, response.json().await.unwrap())
+}
+
+fn turn_event(turn_id: &str) -> Value {
+    json!({
+        "session_id": "worker", "runtime_id": "codex-thread", "turn_id": turn_id,
+        "recipient_id": "orchestrator", "correlation_id": "assignment-1",
+        "status": "completed", "final_text": "4", "artifact_refs": [], "error": null,
+    })
+}
+
+#[tokio::test]
+async fn runtime_result_survives_restarts_retries_and_ack_without_a_second_message() {
+    tokio::time::timeout(Duration::from_secs(40), async {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("hub.sqlite3");
+        let hub = Hub::start(&database).await;
+        hub.register("orchestrator", "orchestrator-thread").await;
+        hub.register("worker", "codex-thread").await;
+        let event = turn_event("turn-1");
+        let (status, result) = post_turn(&hub, &event).await;
+        assert_eq!(status, reqwest::StatusCode::OK);
+        assert_eq!(result["message"]["sender_id"], "worker");
+        assert_eq!(result["message"]["correlation_id"], "assignment-1");
+        assert_eq!(
+            result["message"]["payload"],
+            json!({
+                "type": "turn_completed", "runtime_id": "codex-thread", "turn_id": "turn-1",
+                "status": "completed", "final_text": "4", "artifact_refs": [], "error": null,
+            })
+        );
+        drop(hub);
+
+        let hub = Hub::start(&database).await;
+        let client = hub.client().await;
+        let expected = json!({"messages": [result["message"]], "next_cursor": null});
+        assert_eq!(
+            call(
+                &client,
+                "hub_read_inbox",
+                json!({"session_id": "orchestrator"})
+            )
+            .await,
+            expected
+        );
+        let ((a_status, a), (b_status, b)) =
+            tokio::join!(post_turn(&hub, &event), post_turn(&hub, &event));
+        assert_eq!(a_status, reqwest::StatusCode::OK);
+        assert_eq!(b_status, reqwest::StatusCode::OK);
+        assert_eq!(a, result);
+        assert_eq!(b, result);
+        assert_eq!(
+            call(
+                &client,
+                "hub_read_inbox",
+                json!({"session_id": "orchestrator"})
+            )
+            .await,
+            expected
+        );
+        call(
+            &client,
+            "hub_ack_message",
+            json!({
+                "session_id": "orchestrator", "message_id": result["message"]["message_id"],
+            }),
+        )
+        .await;
+        client.cancel().await.unwrap();
+        drop(hub);
+
+        let hub = Hub::start(&database).await;
+        // An old committed event can be retried after the session's runtime has changed.
+        hub.register("worker", "resumed-elsewhere").await;
+        let (_, replay) = post_turn(&hub, &event).await;
+        assert_eq!(replay["message"]["sequence"], result["message"]["sequence"]);
+        assert_eq!(replay["message"]["acknowledged"], true);
+        let client = hub.client().await;
+        assert_eq!(
+            call(
+                &client,
+                "hub_read_inbox",
+                json!({"session_id": "orchestrator"})
+            )
+            .await["messages"],
+            json!([])
+        );
+        client.cancel().await.unwrap();
+    })
+    .await
+    .expect("Runtime result durability scenario timed out");
+}
+
+#[tokio::test]
+async fn runtime_result_preserves_terminal_status_null_text_errors_and_artifact_refs() {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        let directory = tempfile::tempdir().unwrap();
+        let hub = Hub::start(&directory.path().join("hub.sqlite3")).await;
+        hub.register("orchestrator", "orchestrator-thread").await;
+        hub.register("worker", "codex-thread").await;
+        for status in ["completed", "failed", "interrupted"] {
+            let mut event = turn_event(status);
+            event["status"] = json!(status);
+            event["final_text"] = Value::Null;
+            event["error"] = if status == "failed" {
+                json!({"message": "runtime error", "codexErrorInfo": "other"})
+            } else {
+                Value::Null
+            };
+            event["artifact_refs"] = json!(["/tmp/report.md"]);
+            let (response_status, result) = post_turn(&hub, &event).await;
+            assert_eq!(response_status, reqwest::StatusCode::OK);
+            for field in ["status", "final_text", "error", "artifact_refs"] {
+                assert_eq!(result["message"]["payload"][field], event[field]);
+            }
+            assert!(result["message"]["payload"].get("task_success").is_none());
+        }
+        let client = hub.client().await;
+        assert_eq!(
+            call(
+                &client,
+                "hub_read_inbox",
+                json!({"session_id": "orchestrator"})
+            )
+            .await["messages"]
+                .as_array()
+                .unwrap()
+                .len(),
+            3
+        );
+        client.cancel().await.unwrap();
+    })
+    .await
+    .expect("Runtime statuses scenario timed out");
+}
+
+#[tokio::test]
+async fn invalid_or_changed_runtime_results_do_not_create_messages() {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        let directory = tempfile::tempdir().unwrap();
+        let hub = Hub::start(&directory.path().join("hub.sqlite3")).await;
+        hub.register("orchestrator", "orchestrator-thread").await;
+        hub.register("worker", "codex-thread").await;
+        hub.register("other", "other-thread").await;
+        for field in [
+            "session_id",
+            "runtime_id",
+            "turn_id",
+            "recipient_id",
+            "correlation_id",
+        ] {
+            let mut invalid = turn_event("turn-1");
+            invalid[field] = json!(" \t ");
+            let (status, body) = post_turn(&hub, &invalid).await;
+            assert_eq!(status, reqwest::StatusCode::BAD_REQUEST);
+            assert_eq!(body["error"], format!("{field} must not be blank"));
+        }
+        for (field, value) in [
+            ("status", json!("inProgress")),
+            ("status", json!("success")),
+            ("unknown", json!(true)),
+            ("final_text", json!(123)),
+            ("artifact_refs", json!("path")),
+        ] {
+            let mut invalid = turn_event("turn-1");
+            invalid[field] = value;
+            let response = reqwest::Client::new()
+                .post(format!("{}/turn-results", hub.base))
+                .json(&invalid)
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        for field in ["session_id", "recipient_id"] {
+            let mut invalid = turn_event("turn-1");
+            invalid[field] = json!("unregistered");
+            assert_eq!(
+                post_turn(&hub, &invalid).await.0,
+                reqwest::StatusCode::BAD_REQUEST
+            );
+        }
+        let client = hub.client().await;
+        assert_eq!(
+            call(
+                &client,
+                "hub_read_inbox",
+                json!({"session_id": "orchestrator"})
+            )
+            .await["messages"],
+            json!([])
+        );
+        let event = turn_event("turn-1");
+        let (_, sent) = post_turn(&hub, &event).await;
+        for (field, value) in [
+            ("recipient_id", json!("other")),
+            ("correlation_id", json!("changed")),
+            ("status", json!("failed")),
+            ("final_text", json!("changed")),
+            ("artifact_refs", json!(["new-artifact"])),
+            ("error", json!({"message": "changed"})),
+        ] {
+            let mut changed = event.clone();
+            changed[field] = value;
+            let (status, body) = post_turn(&hub, &changed).await;
+            assert_eq!(status, reqwest::StatusCode::BAD_REQUEST);
+            assert!(
+                body["error"]
+                    .as_str()
+                    .unwrap()
+                    .contains("already exists with different data")
+            );
+        }
+        assert_eq!(
+            call(
+                &client,
+                "hub_read_inbox",
+                json!({"session_id": "orchestrator"})
+            )
+            .await,
+            json!({"messages": [sent["message"]], "next_cursor": null})
+        );
+        client.cancel().await.unwrap();
+    })
+    .await
+    .expect("Runtime result validation scenario timed out");
+}
+
 #[tokio::test]
 async fn message_ack_and_correlated_reply_survive_two_process_restarts() {
     tokio::time::timeout(Duration::from_secs(40), async {

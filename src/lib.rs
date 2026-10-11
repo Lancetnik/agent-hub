@@ -2,6 +2,7 @@ mod mcp;
 mod messaging;
 mod sessions;
 mod store;
+mod turns;
 
 use std::path::Path;
 
@@ -33,6 +34,7 @@ pub fn router(
     Ok(Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/sessions", post(sessions::register))
+        .route("/turn-results", post(turns::record))
         .nest_service("/mcp", service)
         .with_state(store))
 }

@@ -16,13 +16,15 @@ from urllib.request import Request, urlopen
 
 
 class AppServer:
-    def __init__(self, codex, url):
+    def __init__(self, codex, url, *, command=None, environment=None, on_notification=None):
         self.next_id = 0
         self.messages = queue.Queue()
+        self.notifications = []
+        self.on_notification = on_notification
         self.stderr = tempfile.TemporaryFile(mode="w+t")
         try:
             self.process = subprocess.Popen(
-                [
+                command or [
                     codex,
                     "app-server",
                     "--listen",
@@ -34,6 +36,7 @@ class AppServer:
                     "-c",
                     "analytics.enabled=false",
                 ],
+                env=environment,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=self.stderr,
@@ -67,26 +70,43 @@ class AppServer:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError(f"Timed out waiting for {method}")
-            try:
-                message = self.messages.get(timeout=remaining)
-            except queue.Empty as error:
-                raise TimeoutError(f"Timed out waiting for {method}") from error
-            if isinstance(message, Exception):
-                raise message
+            message = self.receive(remaining)
             if "method" in message:
-                if "id" in message:
-                    # This probe never needs approvals, user input, or elicitation.
-                    self.send(
-                        {
-                            "id": message["id"],
-                            "error": {"code": -32601, "message": "Unsupported in MCP probe"},
-                        }
-                    )
                 continue
             if message.get("id") == request_id:
                 if "error" in message:
                     raise RuntimeError(f"{method}: {json.dumps(message['error'])}")
                 return message["result"]
+
+    def receive(self, timeout):
+        try:
+            message = self.messages.get(timeout=timeout)
+        except queue.Empty as error:
+            raise TimeoutError("Timed out waiting for Codex") from error
+        if isinstance(message, Exception):
+            raise message
+        if "method" in message:
+            if "id" in message:
+                # These probes do not approve tools, input requests, or elicitation.
+                self.send({"id": message["id"], "error": {
+                    "code": -32601, "message": "Unsupported in Agent Hub integration",
+                }})
+            else:
+                self.notifications.append(message)
+                if self.on_notification:
+                    self.on_notification(message)
+        return message
+
+    def wait_notification(self, method, predicate=lambda params: True, timeout=120):
+        deadline = time.monotonic() + timeout
+        while True:
+            for index, message in enumerate(self.notifications):
+                if message["method"] == method and predicate(message["params"]):
+                    return self.notifications.pop(index)["params"]
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"Timed out waiting for {method}")
+            self.receive(remaining)
 
     def close(self):
         if self.process.poll() is None:
