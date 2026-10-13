@@ -168,7 +168,7 @@ def check_messaging(app, orchestrator_thread, url):
 
     arguments = {
         "message_id": nonce + "-request", "sender_id": orchestrator_id, "recipient_id": worker_id,
-        "payload": {"text": "Посчитай 2 + 2"}, "correlation_id": nonce,
+        "payload": {"text": "Compute 2 + 2"}, "correlation_id": nonce,
     }
     sent = call(orchestrator_thread, "hub_send_message", arguments)
     if call(orchestrator_thread, "hub_send_message", arguments) != sent:

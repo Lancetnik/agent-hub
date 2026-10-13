@@ -54,6 +54,46 @@ class Outbox:
         self.db.close()
 
 
+HUB_NOTIFICATIONS = {"turn_completed", "lock_granted", "lock_expired"}
+
+
+class LeaseJournal(Outbox):
+    """Bind observed grants to runtime turns; queue release before marking closed."""
+
+    def __init__(self, path):
+        super().__init__(path)
+        self.db.execute("""CREATE TABLE IF NOT EXISTS held_locks (
+            turn_id TEXT NOT NULL, request_id TEXT NOT NULL, closed INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(turn_id, request_id)
+        )""")
+        self.db.commit()
+
+    def hold_lock(self, turn_id, request_id):
+        with self.db:
+            self.db.execute("INSERT OR IGNORE INTO held_locks(turn_id,request_id) VALUES(?,?)", (turn_id, request_id))
+
+    def observe_lock(self, turn_id, item, session_id):
+        if (item.get("type") != "mcpToolCall" or item.get("server") != "agent_hub"
+                or item.get("tool") != "hub_acquire_lock" or item.get("status") != "completed" or item.get("error")):
+            return
+        ticket = (item.get("result") or {}).get("structuredContent")
+        if (isinstance(ticket, dict) and ticket.get("status") == "acquired"
+                and ticket.get("session_id") == session_id
+                and ticket.get("request_id") == item.get("arguments", {}).get("request_id")):
+            self.hold_lock(turn_id, ticket["request_id"])
+
+    def held_locks(self, turn_id):
+        return [row[0] for row in self.db.execute("SELECT request_id FROM held_locks WHERE turn_id=? AND closed=0", (turn_id,))]
+
+    def release_locks(self, turn_id, hub):
+        for request_id in self.held_locks(turn_id):
+            self.enqueue("lock-release:" + json.dumps([hub.session_id, request_id, turn_id]), hub.url + "/locks/release",
+                         {"session_id": hub.session_id, "request_id": request_id})
+            # A crash here repeats an idempotent release; it cannot lose the intent.
+            with self.db:
+                self.db.execute("UPDATE held_locks SET closed=1 WHERE turn_id=? AND request_id=?", (turn_id, request_id))
+
+
 class TurnCollector:
     """Use completed items for text, and only a terminal event for completion."""
 
@@ -77,7 +117,8 @@ class TurnCollector:
         turn = terminal["turn"]
         if turn["status"] not in {"completed", "failed", "interrupted"}:
             raise ValueError("Expected a terminal runtime status")
-        items = list(self.items.get(turn["id"], {}).values())
+        # Runtime snapshots can contain the complete items even without separate notifications.
+        items = turn.get("items") or list(self.items.get(turn["id"], {}).values())
         texts = [i["text"] for i in items if i["type"] == "agentMessage"
                  and i.get("phase") in {"final_answer", None}]
         artifacts = sorted({change["path"] for i in items if i["type"] == "fileChange"

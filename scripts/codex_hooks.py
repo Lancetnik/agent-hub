@@ -19,7 +19,7 @@ from pathlib import Path
 
 from codex_daemon import DaemonClient
 from codex_session import HubClient, InboxSignals
-from codex_worker import Outbox, TurnCollector, initialize
+from codex_worker import HUB_NOTIFICATIONS, LeaseJournal, TurnCollector, initialize
 
 MARKER = "Agent Hub ordinary CLI integration"
 EVENTS = ("SessionStart", "Stop", "SessionEnd")
@@ -34,7 +34,7 @@ def client_id(message_id):
     return "agent-hub:" + hashlib.sha256(message_id.encode()).hexdigest()
 
 
-class CliJournal(Outbox):
+class CliJournal(LeaseJournal):
     def __init__(self, path):
         super().__init__(path)
         self.db.executescript("""
@@ -121,9 +121,14 @@ class CliBridge:
         method = notification["method"]
         if method in {"item/started", "item/completed"}:
             self.journal.observe_input(params["turnId"], params["item"])
+            if method == "item/completed":
+                self.journal.observe_lock(params["turnId"], params["item"], self.hub.session_id)
         self.collector.observe(notification)
         if method == "turn/completed":
+            for item in params["turn"].get("items", []):
+                self.journal.observe_input(params["turn"]["id"], item)
             self.finish(params)
+            self.next_poll = 0
 
     def recover(self, turns, queued):
         self.journal.recover_queue(queued)
@@ -132,19 +137,25 @@ class CliBridge:
                 self.observe({"method": "item/completed", "params": {
                     "threadId": self.thread_id, "turnId": turn["id"], "item": item,
                 }})
-            if turn["status"] in {"completed", "failed", "interrupted"} and self.journal.unfinished(turn["id"]):
+            if turn["status"] in {"completed", "failed", "interrupted"} and (
+                    self.journal.unfinished(turn["id"]) or self.journal.held_locks(turn["id"])):
                 self.finish({"threadId": self.thread_id, "turn": turn})
 
     def finish(self, terminal):
         turn_id = terminal["turn"]["id"]
+        for item in terminal["turn"].get("items", []):
+            self.journal.observe_lock(turn_id, item, self.hub.session_id)
         message = self.journal.unfinished(turn_id)
+        if message and isinstance(message["payload"], dict) and message["payload"].get("type") == "lock_granted":
+            self.journal.hold_lock(turn_id, message["payload"]["request_id"])
+        self.journal.release_locks(turn_id, self.hub)
         result = self.collector.result(terminal, self.hub.session_id,
                                        message["sender_id"] if message else self.hub.session_id,
                                        (message.get("correlation_id") or message["message_id"]) if message else turn_id)
         if message:
             # Automatically return request results, but avoid reciprocal replies to results.
             payload = message["payload"]
-            if not isinstance(payload, dict) or payload.get("type") != "turn_completed":
+            if not isinstance(payload, dict) or payload.get("type") not in HUB_NOTIFICATIONS:
                 self.journal.enqueue("result:" + json.dumps([self.hub.session_id, self.thread_id, turn_id]),
                                      self.hub.url + "/turn-results", result)
             self.journal.completed(turn_id)
@@ -152,6 +163,13 @@ class CliBridge:
                    "status": result["status"], "final_text": result["final_text"]})
 
     def deliver(self, message):
+        if isinstance(message["payload"], dict) and message["payload"].get("type") == "lock_granted":
+            ticket = self.hub.lock_status(message["payload"]["request_id"])
+            if not ticket or ticket["status"] != "acquired":
+                self.hub.ack(message["message_id"])
+                self.emit({"type": "stale_lock_grant", "message_id": message["message_id"]})
+                self.next_poll = 0
+                return False
         self.journal.prepare(message)
         if not self.journal.accepted(message["message_id"]):
             response = self.app.request("thread/queue/add", {
@@ -165,6 +183,7 @@ class CliBridge:
                        "thread_id": self.thread_id, "queue_id": response["id"]})
         self.hub.ack(message["message_id"])
         self.journal.acked(message["message_id"])
+        return True
 
     def tick(self):
         for _ in range(32):
@@ -176,7 +195,7 @@ class CliBridge:
         now = time.monotonic()
         if now < self.next_poll and not (self.signals and self.signals.dirty.is_set()):
             return
-        self.next_poll = now + 1
+        self.next_poll = now + 30
         if self.signals:
             self.signals.dirty.clear()
         try:
@@ -189,8 +208,8 @@ class CliBridge:
             if thread["status"]["type"] != "idle":
                 return
             for message in self.hub.inbox():
-                self.deliver(message)
-                break
+                if self.deliver(message):
+                    break
         except HTTP_FAILURES as error:
             self.emit({"type": "hub_retry", "error": str(error)})
 
@@ -260,9 +279,15 @@ def hook(settings_path):
             pass  # The bridge retries durable registration after Hub recovers.
         if event["hook_event_name"] == "SessionStart":
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext":
-                f"Your Agent Hub session_id and sender_id are {session_id}. Use hub_list_sessions to find peers and "
-                "hub_send_message to contact them. Incoming Hub requests are delivered automatically in this CLI "
-                "conversation. The integration reports turn results automatically; no completion tool is needed."}}))
+                f"Your Agent Hub session_id and sender_id are {session_id}. For routine local work, use ordinary "
+                "local tools. When a task requires contacting another session, use hub_list_sessions to find peers "
+                "and hub_send_message to contact them. Incoming Hub requests are delivered automatically in this CLI "
+                "conversation. After sending tasks, finish this turn with a brief pending-work acknowledgement: "
+                "replies arrive in later turns when this CLI is idle. Sleeping or polling inbox while waiting delays "
+                "delivery. For an incoming task, return its answer in your final response; the integration sends it "
+                "back automatically, so an extra hub_send_message would duplicate the reply. Incoming "
+                "payload.type=turn_completed is a result: retain partial results and finish the turn until all needed "
+                "replies arrive. No completion tool is needed."}}))
         else:
             print("{}")  # Stop is a reconnect hint, never treated as terminal completion.
     finally:

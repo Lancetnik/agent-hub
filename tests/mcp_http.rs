@@ -58,15 +58,17 @@ async fn http_health_and_mcp_round_trip() {
                 names,
                 [
                     "hub_ack_message",
+                    "hub_acquire_lock",
                     "hub_list_sessions",
                     "hub_lookup_session",
                     "hub_ping",
                     "hub_read_inbox",
+                    "hub_release_lock",
                     "hub_send_message",
                 ]
             );
             assert!(tools.iter().all(|tool| tool.output_schema.is_some()));
-            let message = "Привет, Codex! 🦀";
+            let message = "Hello, Codex! 🦀";
             let result = client
                 .call_tool(
                     CallToolRequestParams::new("hub_ping")

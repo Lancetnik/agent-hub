@@ -68,7 +68,7 @@ async fn http_registration_is_shared_by_mcp_clients_and_upserts_by_stable_id() {
         let orchestrator = json!({
             "session_id": "orchestrator",
             "runtime_id": "codex-thread-a",
-            "display_name": "Оркестратор 🦀",
+            "display_name": "Orchestrator 🦀",
         });
         let worker = json!({
             "session_id": "worker",

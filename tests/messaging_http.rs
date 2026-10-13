@@ -360,7 +360,7 @@ async fn message_ack_and_correlated_reply_survive_two_process_restarts() {
         let client = hub.client().await;
         let request = json!({
             "message_id": "request-1", "sender_id": "A", "recipient_id": "B",
-            "payload": {"text": "Сделай работу 🦀"}, "correlation_id": "task-1",
+            "payload": {"text": "Do the work 🦀"}, "correlation_id": "task-1",
         });
         let sent = call(&client, "hub_send_message", request.clone()).await;
         assert_eq!(sent["message"]["acknowledged"], false);
@@ -402,7 +402,7 @@ async fn message_ack_and_correlated_reply_survive_two_process_restarts() {
             "hub_send_message",
             json!({
                 "message_id": "reply-1", "sender_id": "B", "recipient_id": "A",
-                "payload": {"result": "готово"}, "correlation_id": "task-1",
+                "payload": {"result": "done"}, "correlation_id": "task-1",
             }),
         )
         .await;

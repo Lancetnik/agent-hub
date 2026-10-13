@@ -86,7 +86,7 @@ async fn demo() -> Result<(), Box<dyn Error>> {
     let database = directory.path().join("hub.sqlite3");
     let hub = Hub::start(&database).await?;
     reqwest::Client::new().post(format!("{}/sessions", hub.base))
-        .json(&json!({"session_id": "orchestrator", "runtime_id": "external-orchestrator", "display_name": "Оркестратор"}))
+        .json(&json!({"session_id": "orchestrator", "runtime_id": "external-orchestrator", "display_name": "Orchestrator"}))
         .send().await?.error_for_status()?;
 
     let worker_script = Path::new(env!("CARGO_MANIFEST_DIR")).join("scripts/codex_worker.py");

@@ -7,6 +7,7 @@ use rmcp::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    locks::{AcquireLock, LockTicket, ReleaseLock},
     messaging::{
         AckMessageRequest, AckMessageResponse, ReadInboxRequest, ReadInboxResponse,
         SendMessageRequest, SendMessageResponse,
@@ -163,6 +164,46 @@ impl AgentHub {
     ) -> Result<Json<AckMessageResponse>, String> {
         self.store.ack(request).await.map(Json).map_err(tool_error)
     }
+
+    #[tool(
+        description = "Optional escalation for an observed overlapping-edit conflict with another agent, or an explicit request to serialize a specific resource. Routine edits use ordinary local tools directly; another registered session alone does not establish a conflict. Acquire a cooperative lease using your registered session_id, a globally unique request_id, and the shared absolute resource path. ttl_seconds is 1..600, default 120, starting on grant. Identical replay checks status without renewal. If waiting, finish the turn; lock_granted resumes your existing CLI conversation. On grant, replay to confirm acquired, reread the latest file, and finish writes before expires_at_ms. Release when done; lock notifications need no peer reply. Hub does not enforce filesystem writes.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn hub_acquire_lock(
+        &self,
+        Parameters(request): Parameters<AcquireLock>,
+    ) -> Result<Json<LockTicket>, String> {
+        self.store
+            .acquire_lock(request)
+            .await
+            .map(Json)
+            .map_err(tool_error)
+    }
+
+    #[tool(
+        description = "Release your exact lock request_id or cancel it while waiting. Repeated release succeeds and cannot release a later owner's lease. Hub atomically grants the next FIFO waiter and delivers lock_granted. Ordinary Codex CLI integration also releases observed acquired leases when their runtime turn ends; TTL is a fallback. Stop writing after release or expiry.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn hub_release_lock(
+        &self,
+        Parameters(request): Parameters<ReleaseLock>,
+    ) -> Result<Json<LockTicket>, String> {
+        self.store
+            .release_lock(request)
+            .await
+            .map(Json)
+            .map_err(tool_error)
+    }
 }
 
 fn tool_error(error: StoreError) -> String {
@@ -187,7 +228,10 @@ impl ServerHandler for AgentHub {
                  Use hub_send_message for durable direct messages, hub_read_inbox for pending messages, \
                  and hub_ack_message to explicitly confirm acceptance as the recipient. Reuse the \
                  message_id and data when retrying a send. Read does not ACK; omit cursor on a new poll. \
-                 ACK is acceptance, not task success. Sessions, messages, and ACKs survive restarts.",
+                 ACK is acceptance, not task success. Sessions, messages, and ACKs survive restarts. \
+                 For routine local edits use ordinary local tools directly. Use Hub for tasks that \
+                 require cross-session communication; optional resource coordination is an escalation \
+                 after an observed conflict or an explicit request to serialize a resource.",
             )
     }
 }

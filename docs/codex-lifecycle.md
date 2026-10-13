@@ -1,136 +1,138 @@
-# Подключение результатов хода Codex
+# Connecting Codex turn results
 
-Обычный интерактивный CLI теперь поддержан отдельной
-[интеграцией через хуки](codex-hooks.md), подключающейся к его shared daemon.
-Ниже сохранены проверка и ограничения stdio-адаптера третьего этапа.
+Ordinary interactive CLI is supported by the separate
+[hook integration](codex-hooks.md), which attaches to its shared daemon.
+This document retains milestone 3's stdio adapter verification and limits.
 
-Проверено 11 октября 2026 года на `codex-cli 0.162.1` для этапов
+Verified on 2026-10-11 with `codex-cli 0.162.1` for
 [Prepare milestone 3: verify real Codex lifecycle callbacks](https://github.com/Lancetnik/agent-hub/issues/12)
-и [Milestone 3: automatic delivery of worker turn results](https://github.com/Lancetnik/agent-hub/issues/7).
+and [Milestone 3: automatic delivery of worker turn results](https://github.com/Lancetnik/agent-hub/issues/7).
 
-## Подтверждённый источник результата
+## Verified result source
 
-Внешний адаптер использует Codex App Server по stdio. Регистрацию выполняет после
-`thread/start`, связывая выбранный пользователем адрес Hub с полученным `thread.id`.
-Итог передаёт только после `turn/completed`: копирует `turn.id`, `turn.status` и `turn.error`.
-Текст берёт из последнего завершённого `agentMessage` этого thread/turn с фазой
-`final_answer` или неизвестной фазой `null`. Сообщения `commentary` исключает.
-Завершённые `fileChange` дают ссылки на пути материалов; сами файлы не загружаются в Hub.
+The external adapter uses Codex App Server over stdio. It registers after
+`thread/start`, binding the user-selected Hub address to the returned `thread.id`.
+It reports a result only after `turn/completed`, copying `turn.id`, `turn.status`,
+and `turn.error`. Text comes from the last completed `agentMessage` in that
+thread/turn with phase `final_answer` or unknown phase `null`. Commentary is
+excluded. Completed `fileChange` items provide artifact paths; Hub does not
+receive the files themselves.
 
-Это опирается на [официальный контракт App Server](https://learn.chatgpt.com/docs/app-server)
-и схемы из установленного бинарника:
+This follows the [official App Server contract](https://learn.chatgpt.com/docs/app-server)
+and schemas generated from the installed binary:
 
 ```sh
 codex --version
 codex app-server generate-json-schema --out /tmp/agent-hub-codex-schema
 ```
 
-Поток `item/completed` используется для содержимого, даже когда `turn.items` — только
-сводка или пустой массив. `completed`, `failed`, `interrupted` — статусы завершения
-хода. Успех порученной задачи оценивает оркестратор; адаптер такого решения не принимает.
+`item/completed` supplies contents even when `turn.items` is only a summary or
+empty. `completed`, `failed`, and `interrupted` are terminal turn statuses.
+The orchestrator assesses task success; the adapter does not make that decision.
 
-## Реальные callbacks
+## Real callbacks
 
-Для воспроизведения нужны Python 3.11+, установленный Codex и выполненный вход в него.
-Проверка запускает реальное inference и расходует квоту Codex.
+Reproduction requires Python 3.11+, an installed and authenticated Codex.
+The probe runs real inference and consumes Codex quota.
 
 ```sh
 python3 scripts/check_codex_lifecycle.py --output /tmp/codex-lifecycle.json
 python3 scripts/check_codex_lifecycle.py --continue-once --output /tmp/codex-continuation.json
 ```
 
-Проверка создаёт временный `CODEX_HOME` с собственным recorder и изолированным config.
-Использует существующий вход через ссылку на `auth.json` и модель из пользовательского
-config; пользовательские настройки и hook trust не изменяет. Доверие записывает только
-для точных определений своего проверенного recorder во временном config.
-Другие пользовательские hooks и плагины в этой проверке не загружаются.
+The probe creates a temporary CODEX_HOME with its own recorder and isolated
+config. It reuses existing authentication via an auth.json symlink and the model
+from user config; user settings and hook trust remain unchanged. Trust is written
+only for the exact verified recorder definitions in temporary config. Other user
+hooks and plugins are not loaded by this probe.
 
-Наблюдались:
+Observed:
 
-- `SessionStart`: `session_id` совпадает с новым root `thread.id`, `source: startup`;
-- обычный `Stop`: тот же `session_id`, ID хода, `last_assistant_message: "4"`,
-  `stop_hook_active: false`; затем `turn/completed` со статусом `completed`;
-- продолжение через `Stop`: первый callback содержит `"4"`; recorder возвращает
-  `decision: block`; второй callback того же хода содержит `"5"` и
-  `stop_hook_active: true`. Терминальный результат адаптера — `"5"`;
-- при недоступной сети ход завершился `failed` без callback `Stop`.
-- внешний worker с `--timeout 0.001` получил терминальный `interrupted` с
-  `final_text: null`; HTTP-результат сохранился в Hub. Воспроизводится обычной
-  командой worker выше с этим дополнительным параметром. Код выхода 1 ожидаем.
+- `SessionStart`: session_id matches the new root thread.id, `source: startup`.
+- Ordinary `Stop`: the same session_id, turn ID, `last_assistant_message: "4"`,
+  `stop_hook_active: false`, followed by `turn/completed` with `completed` status.
+- Continuation through `Stop`: the first callback contains `"4"`; the recorder
+  returns `decision: block`. The second callback for the same turn contains `"5"`
+  and `stop_hook_active: true`. The adapter's terminal result is `"5"`.
+- With unavailable networking, the turn ended `failed` without a `Stop` callback.
+- An external worker with `--timeout 0.001` ended `interrupted` with
+  `final_text: null`, and its HTTP result persisted in Hub. Reproduce with the
+  worker command below and this additional option; exit code 1 is expected.
 
-Обезличенный захват продолжения: [codex-lifecycle.json](evidence/codex-lifecycle.json).
-IDs сохранены для проверки связи; cwd, transcript paths и данные авторизации исключены.
+Sanitized continuation capture: [codex-lifecycle.json](evidence/codex-lifecycle.json).
+IDs remain for correlation checks; cwd, transcript paths, and authentication
+contents are excluded.
 
-`Stop` допускает `null` вместо текста и может продолжить ход; это описано
-в [официальной документации Hooks](https://learn.chatgpt.com/docs/hooks) и подтверждено
-экспериментом с продолжением. Поэтому `Stop` не используется как терминальное событие.
-Отдельный HTTP lifecycle-hook для обычной CLI/IDE-сессии в этом этапе не устанавливается.
+`Stop` permits null text and may continue a turn, as documented in
+[Hooks](https://learn.chatgpt.com/docs/hooks) and verified by the continuation
+experiment. It is therefore not treated as terminal. This milestone does not
+install a separate HTTP lifecycle hook for ordinary CLI/IDE sessions.
 
-## Внешний worker и доставка
+## External worker and delivery
 
-При запущенном Hub сначала зарегистрируйте оркестратора, затем запустите внешний адаптер:
+With Hub running, register the orchestrator first, then run the external adapter:
 
 ```sh
 curl --fail-with-body http://127.0.0.1:7331/sessions \
   -H 'Content-Type: application/json' \
-  -d '{"session_id":"orchestrator","runtime_id":"external-orchestrator","display_name":"Оркестратор"}'
+  -d '{"session_id":"orchestrator","runtime_id":"external-orchestrator","display_name":"Orchestrator"}'
 
 python3 scripts/codex_worker.py \
   --session-id worker --recipient-id orchestrator --correlation-id assignment-1 \
   'Compute 2 + 2. Reply with the single digit only. Do not use tools.'
 ```
 
-Регистрация worker и отправка результата происходят автоматически по HTTP. Текст prompt
-не содержит инструкции сообщить о завершении через MCP. Адрес получателя и связь
-с исходным поручением задаёт вызывающий адаптер пользователь или внешний оркестратор.
-Он также выбирает стабильный `--session-id`. Результат печатается как одно JSON-событие
-в stdout: его можно сохранить и повторно POST-ить в `/turn-results`.
+Worker registration and result submission happen automatically over HTTP. The
+prompt contains no instruction to report completion through MCP. The adapter's
+caller, either a user or external orchestrator, selects the recipient, original
+assignment correlation, and stable `--session-id`. A result prints as one JSON
+event to stdout and can be saved and POSTed again to `/turn-results`.
 
-До отправки HTTP адаптер фиксирует регистрацию и результат в локальной SQLite outbox
-(`.agent-hub/outbox.sqlite3` по умолчанию; можно задать `--outbox`). После подтверждённого
-HTTP-ответа удаляет запись из outbox. Регистрация доставляется раньше результата.
-Недоставленные события сохраняются при выходе процесса:
+Before HTTP submission the adapter commits registration and result to a local
+SQLite outbox (`.agent-hub/outbox.sqlite3` by default; override with `--outbox`).
+It deletes an entry after a confirmed HTTP response. Registration precedes
+results. Undelivered events survive process exit:
 
 ```sh
 python3 scripts/codex_worker.py --retry
 ```
 
-Повторная доставка не запускает Codex и использует сохранённые URL и точные данные событий.
-С новым запуском worker накопленные события тоже повторяются. Постоянного фонового retry
-нет: после восстановления Hub нужно запустить `--retry` или следующий worker.
-Неизвестный адресат и конфликт данных не теряют событие: оно остаётся в outbox, а ошибка
-показывается вызывающему. Используйте тот же `--outbox` при повторе.
+Retry does not start Codex; it uses saved URLs and exact event data. A new worker
+launch also retries accumulated events. There is no persistent background retry:
+run `--retry` or the next worker after Hub recovery. Unknown recipients and data
+conflicts retain the event in outbox and expose the error to the caller. Reuse
+the same `--outbox` when retrying.
 
-## Границы интеграции
+## Integration limits
 
-- Поддержан один внешний запуск App Server, новый ephemeral root thread и один ход
-  на вызов адаптера. Hub не владеет процессом Codex. При повторном вызове с тем же
-  `session_id` регистрация обновляется на новый thread; ID результата включает оба ID.
-- Worker использует `read-only` sandbox и `approvalPolicy: never`. Это путь для
-  локального прототипа; интерактивные approval/input-запросы адаптер отклоняет.
-- Рабочий адаптер наследует установленный пользовательский config Codex, кроме
-  переданного MCP-конфига и отключения analytics. Hooks проходят обычную проверку доверия Codex.
-  Изолированный lifecycle-probe выше использует свой config.
-- `--timeout` (180 секунд по умолчанию) и Ctrl-C запрашивают `turn/interrupt`;
-  результат записывается по полученному терминальному событию. `failed`/`interrupted`
-  дают код выхода 1 даже при успешной доставке. Код 0 означает обычное завершение
-  хода и доставку, а не успешность задачи.
-- Отсутствие итогового текста сохраняется как `null`; ссылки на материалы могут
-  отсутствовать. У legacy-моделей фаза `null` не позволяет отделить комментарий от итога.
-- Авария Codex или адаптера до наблюдения и локального сохранения терминального события
-  не создаёт выдуманного результата. Уже сохранённые события можно доставить повторно.
-- Постоянный внешний клиент, SSE и автоматическое продолжение оркестратора
-  реализованы следующим этапом: [доставка Codex](codex-delivery.md).
-  Подключение к произвольной существующей CLI/IDE-сессии не поддерживается.
+- Each adapter call owns one external App Server launch, a new ephemeral root
+  thread, and one turn. Hub does not own the Codex process. Reusing session_id
+  updates registration to the new thread; the result ID includes both IDs.
+- The worker uses read-only sandbox and `approvalPolicy: never`. This is a local
+  prototype path; interactive approval/input requests are rejected.
+- The worker inherits installed user Codex config except its MCP config override
+  and disabled analytics. Hooks undergo ordinary Codex trust checks. The isolated
+  lifecycle probe above uses its own config.
+- `--timeout` (180 seconds by default) and Ctrl-C request `turn/interrupt`;
+  the received terminal event supplies the result. `failed`/`interrupted` exit 1
+  even after successful delivery. Exit 0 means normal turn completion and
+  delivery, not task success.
+- Missing final text remains null; artifact references may be empty. For legacy
+  models, phase null cannot distinguish commentary from a final answer.
+- A Codex or adapter crash before observing and journaling terminal data does not
+  create an invented result. Previously persisted events can be retried.
+- The next milestone implements a persistent external client, SSE, and automatic
+  orchestrator continuation: [Codex delivery](codex-delivery.md). This stdio path
+  does not attach to arbitrary existing CLI/IDE sessions.
 
-## Полное демо
+## Full demo
 
 ```sh
 cargo run --example turn_results_demo
 ```
 
-Демо поднимает временный Hub, запускает реальный worker, читает итог `4` во входящих
-оркестратора через MCP и проверяет корреляцию. Затем повторяет событие, перезапускает
-HTTP/MCP-сервер с той же базой, повторяет его снова и подтверждает приём через ACK.
-После ACK ещё один повтор возвращает существующее подтверждённое сообщение.
-Успех заканчивается `PASS`; база и outbox демо удаляются при выходе.
+The demo starts a temporary Hub, runs a real worker, reads final value 4 from the
+orchestrator's inbox through MCP, and checks correlation. It then repeats the
+event, restarts HTTP/MCP with the same database, repeats again, and ACKs receipt.
+After ACK, another retry returns the existing acknowledged message. Success ends
+with PASS; temporary database and outbox are removed on exit.

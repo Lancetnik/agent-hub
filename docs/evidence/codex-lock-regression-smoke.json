@@ -1,0 +1,75 @@
+{
+  "version": "codex-cli 0.162.1",
+  "orchestrator_thread_id": "01a136d2-a222-7940-89d9-e394f48fa1fc",
+  "worker_thread_id": "01a136d2-a258-7d93-a016-93a3a75f59fc",
+  "worker_mcp_calls": 0,
+  "scenarios": [
+    "hook registration",
+    "automatic completion",
+    "same dialogue context",
+    "SessionEnd"
+  ],
+  "events": {
+    "orchestrator": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a136d2-a222-7940-89d9-e394f48fa1fc",
+        "thread_id": "01a136d2-a222-7940-89d9-e394f48fa1fc"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a136d2-a222-7940-89d9-e394f48fa1fc",
+        "turn_id": "01a136d2-a265-7092-a49d-5bec4ed27caa",
+        "status": "completed",
+        "final_text": "READY"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a136d2-a222-7940-89d9-e394f48fa1fc",
+        "turn_id": "01a136d2-b3fb-7ca2-bd34-e6f14d6d9c75",
+        "status": "completed",
+        "final_text": "WAITING"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"01a136d2-a258-7d93-a016-93a3a75f59fc\",\"01a136d2-a258-7d93-a016-93a3a75f59fc\",\"01a136d2-cce5-7701-aa4f-e9f971392072\"]",
+        "thread_id": "01a136d2-a222-7940-89d9-e394f48fa1fc",
+        "queue_id": "01a136d2-d4f7-7473-aa25-78ec5da8122d"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a136d2-a222-7940-89d9-e394f48fa1fc",
+        "turn_id": "01a136d2-d4f8-77a3-bdb9-91aec274459e",
+        "status": "completed",
+        "final_text": "41"
+      }
+    ],
+    "worker": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a136d2-a258-7d93-a016-93a3a75f59fc",
+        "thread_id": "01a136d2-a258-7d93-a016-93a3a75f59fc"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a136d2-a258-7d93-a016-93a3a75f59fc",
+        "turn_id": "01a136d2-a283-74f1-b026-6941c9c28f5a",
+        "status": "completed",
+        "final_text": "WORKER_READY"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "hooks-idle",
+        "thread_id": "01a136d2-a258-7d93-a016-93a3a75f59fc",
+        "queue_id": "01a136d2-ccde-7a10-8f62-34c991709fff"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a136d2-a258-7d93-a016-93a3a75f59fc",
+        "turn_id": "01a136d2-cce5-7701-aa4f-e9f971392072",
+        "status": "completed",
+        "final_text": "4"
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@
 
 Issues and specs for this project live in GitHub Issues at https://github.com/Lancetnik/agent-hub. Use the `gh` CLI for all operations.
 
-Pass `--repo Lancetnik/agent-hub` to every `gh issue`, `gh pr`, and `gh label` command. For `gh api`, use `repos/Lancetnik/agent-hub/...` explicitly. This folder currently has no Git remote from which to infer the repository.
+Pass `--repo Lancetnik/agent-hub` to every `gh issue`, `gh pr`, and `gh label` command. For `gh api`, use `repos/Lancetnik/agent-hub/...` explicitly. Keep repository selection explicit rather than depending on the current working directory.
 
 ## Conventions
 
@@ -39,6 +39,7 @@ Read the issue using the command above.
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
 
+- Research results live in full issue comments with primary-source links. Dedicated research branches are optional and may be removed after the findings are preserved in the issue.
 - **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body.
 - **Child ticket**: an issue linked to the map as a GitHub sub-issue. Where sub-issues are unavailable, add the child to a task list in the map body and put `Part of #<map>` at the top of the child body. Labels: `wayfinder:<type>` (`research` / `prototype` / `grilling` / `task`). Once claimed, the ticket is assigned to the driving dev.
 - **Blocking**: use GitHub's native issue dependencies. Add an edge with `gh api --method POST repos/Lancetnik/agent-hub/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`. Obtain the blocker's numeric database id with `gh api repos/Lancetnik/agent-hub/issues/<blocker> --jq .id`; it is distinct from the issue number and node id. The live count of open blockers is `issue_dependencies_summary.blocked_by`. Where dependencies are unavailable, use a `Blocked by: #<n>, #<n>` line at the top of the child body. A ticket is unblocked when every blocker is closed.

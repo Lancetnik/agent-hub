@@ -11,9 +11,10 @@ from http.client import HTTPException
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 from check_codex import AppServer
-from codex_worker import Outbox, TurnCollector, initialize
+from codex_worker import HUB_NOTIFICATIONS, LeaseJournal, TurnCollector, initialize
 
 
 class HubClient:
@@ -46,9 +47,20 @@ class HubClient:
                       "acknowledged": True}:
             raise RuntimeError("Hub did not confirm the recipient ACK")
 
+    def lock_status(self, request_id):
+        request = Request(self.url + "/locks/requests/" + quote(request_id, safe="") + "?"
+                          + urlencode({"session_id": self.session_id}))
+        try:
+            with urlopen(request, timeout=10) as response:
+                return json.load(response)
+        except HTTPError as error:
+            if error.code in {400, 404}:
+                return None
+            raise
+
 
 class InboxSignals:
-    """SSE carries wake-up hints only. Reconnect and keepalives trigger a fresh inbox scan."""
+    """SSE carries wake-up hints only. Reconnect triggers a fresh inbox scan."""
 
     def __init__(self, hub):
         self.hub = hub
@@ -73,7 +85,7 @@ class InboxSignals:
                     for line in response:
                         if self.stopped.is_set():
                             return
-                        if line.startswith(b"data:") or line.startswith(b":"):
+                        if line.startswith(b"data:"):
                             self.dirty.set()
             except (OSError, HTTPException, ValueError):
                 # Timeout, dropped connection, or Hub restart: inbox survives independently.
@@ -90,7 +102,7 @@ class InboxSignals:
         self.thread.join(timeout=6)
 
 
-class Journal(Outbox):
+class Journal(LeaseJournal):
     """Persist runtime receipts before ACK, so ACK retry never starts a second turn."""
 
     def __init__(self, path):
@@ -178,7 +190,7 @@ class CodexSession:
             # A restart can miss terminal events. Persisted runtime history supplies their contents.
             for turn in thread.get("turns", []):
                 for item in turn.get("items", []):
-                    session.collector.observe({"method": "item/completed", "params": {
+                    session.observe({"method": "item/completed", "params": {
                         "threadId": thread["id"], "turnId": turn["id"], "item": item,
                     }})
                 if turn["status"] in {"completed", "failed", "interrupted"}:
@@ -208,6 +220,8 @@ class CodexSession:
         if params.get("threadId") != self.thread_id:
             return
         method = notification["method"]
+        if method == "item/completed":
+            self.journal.observe_lock(params["turnId"], params["item"], self.hub.session_id)
         if method == "turn/started":
             self.active_turn = params["turn"]["id"]
         elif method == "turn/completed":
@@ -216,15 +230,22 @@ class CodexSession:
             if self.active_turn == turn_id:
                 self.active_turn = None
             self.finish(params)
+            self.next_poll = 0
 
     def finish(self, terminal):
         turn_id = terminal["turn"]["id"]
+        for item in terminal["turn"].get("items", []):
+            self.journal.observe_lock(turn_id, item, self.hub.session_id)
         message = self.journal.unfinished(turn_id)
+        if message and isinstance(message["payload"], dict) and message["payload"].get("type") == "lock_granted":
+            self.journal.hold_lock(turn_id, message["payload"]["request_id"])
+        self.journal.release_locks(turn_id, self.hub)
         result = self.collector.result(terminal, self.hub.session_id,
                                        message["sender_id"] if message else self.hub.session_id,
                                        (message.get("correlation_id") or message["message_id"]) if message else turn_id)
         if message:
-            if self.report_results:
+            payload = message["payload"]
+            if self.report_results and (not isinstance(payload, dict) or payload.get("type") not in HUB_NOTIFICATIONS):
                 key = "result:" + json.dumps([self.hub.session_id, self.thread_id, turn_id])
                 self.journal.enqueue(key, self.hub.url + "/turn-results", result)
             self.journal.mark_completed(turn_id)
@@ -242,6 +263,12 @@ class CodexSession:
         return turn_id
 
     def deliver(self, message):
+        if isinstance(message["payload"], dict) and message["payload"].get("type") == "lock_granted":
+            ticket = self.hub.lock_status(message["payload"]["request_id"])
+            if not ticket or ticket["status"] != "acquired":
+                self.hub.ack(message["message_id"])
+                self.emit({"type": "stale_lock_grant", "message_id": message["message_id"]})
+                return
         receipt = self.journal.receipt(message["message_id"])
         if not receipt:
             # Include IDs and correlation in the model's context, rather than just the payload.
@@ -268,7 +295,7 @@ class CodexSession:
         now = time.monotonic()
         if now < self.next_poll and not (self.signals and self.signals.dirty.is_set()):
             return
-        self.next_poll = now + 1
+        self.next_poll = now + 30
         if self.signals:
             self.signals.dirty.clear()
         try:

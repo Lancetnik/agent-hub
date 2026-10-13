@@ -1,14 +1,14 @@
-# Обычные сессии Codex CLI через хуки
+# Ordinary Codex CLI sessions through hooks
 
-После установки пользователь запускает обычный `codex`. Хук `SessionStart`
-регистрирует его runtime UUID в Hub и запускает фоновый обработчик связи.
-Обработчик подключается к существующему shared daemon через Unix WebSocket.
-Сервер Hub остаётся узлом связи; запуск CLI принадлежит пользователю.
+After installation, the user starts ordinary `codex`. The `SessionStart` hook
+registers its runtime UUID in Hub and starts a background communication bridge.
+The bridge attaches to the existing shared daemon over a Unix WebSocket. Hub
+remains the communication service; the user owns CLI startup.
 
-## Установка
+## Installation
 
-Нужны Python 3.11+, установленный Codex с выполненным входом и запущенный Hub.
-Проверено на Codex CLI **0.162.1**. Из корня этого репозитория:
+Requires Python 3.11+, an installed and authenticated Codex, and a running Hub.
+Verified on Codex CLI **0.162.1**. From this repository root:
 
 ```sh
 python3 -m venv .venv
@@ -17,110 +17,131 @@ python3 -m venv .venv
 codex
 ```
 
-В Codex откройте `/hooks` и доверьте команды **Agent Hub ordinary CLI integration**
-для `SessionStart`, `Stop` и `SessionEnd`. Затем запустите новый `codex` или
-возобновите диалог через `codex resume`. Проверка доверия остаётся под управлением
-пользователя; установщик не доверяет другим хукам и не обходит её.
+In Codex, open `/hooks` and trust the **Agent Hub ordinary CLI integration**
+commands for `SessionStart`, `Stop`, and `SessionEnd`. Then start a new `codex`
+or resume a conversation with `codex resume`. Hook trust remains under user
+control; the installer neither trusts other hooks nor bypasses review.
 
-Установщик добавляет свои записи в `$CODEX_HOME/hooks.json` и MCP endpoint
-`mcp_servers.agent_hub` в `config.toml`. По умолчанию `CODEX_HOME` — `~/.codex`.
-Существующие хуки и настройки сохраняются; конфликтующий MCP endpoint вызывает
-ошибку. Повторная установка обновляет свои хуки без дублей.
-Команды содержат абсолютные пути к Python и скрипту: при перемещении репозитория
-или окружения повторите установку. Есть параметры `--codex-home`, `--state-dir`
-и `--socket` для отдельной конфигурации или сокета runtime.
+The installer adds its entries to `$CODEX_HOME/hooks.json` and the
+`mcp_servers.agent_hub` endpoint to `config.toml`. `CODEX_HOME` defaults to
+`~/.codex`. Existing hooks and settings are preserved; a conflicting MCP endpoint
+causes an error. Reinstalling updates owned hooks without duplicates. Commands
+contain absolute paths to Python and the script: reinstall after moving the
+repository or environment. `--codex-home`, `--state-dir`, and `--socket` allow
+a separate config, journal directory, or runtime socket.
 
-Откройте два терминала с обычными `codex`. `SessionStart` сообщает модели собственный
-`session_id`, совпадающий с UUID диалога. `hub_list_sessions` находит другого
-участника; `hub_send_message` отправляет ему поручение. Отображаемое имя берётся
-из имени текущего каталога и может повторяться; адресом служит UUID.
+Open two terminals with ordinary `codex`. `SessionStart` tells the model its own
+`session_id`, matching the conversation UUID. `hub_list_sessions` discovers a
+peer; `hub_send_message` sends it a task. The display name comes from the current
+directory and may repeat; the address is the UUID.
 
-Пример запроса оркестратору: «Найди вторую сессию через `hub_list_sessions`,
-отправь ей поручение вычислить 2 + 2 через `hub_send_message` с новым message_id,
-моим sender_id и correlation_id. Когда придёт результат, сообщи его мне».
-Worker получает входящий JSON с исходным отправителем и корреляцией в своём
-диалоге. Интеграция автоматически возвращает результат его хода отправителю.
+Example orchestrator request: "Find the second session with `hub_list_sessions`
+and ask it to compute 2 + 2 using `hub_send_message`, a fresh message_id, my
+sender_id, and a correlation_id. Report the result when it arrives."
+The worker receives incoming JSON with the original sender and correlation in
+its own conversation. The integration automatically returns its turn result
+to the sender.
 
-## Приём и результаты
+`SessionStart` also explains waiting: after sending tasks, the orchestrator ends
+its current turn and receives results in later turns. The worker answers with
+an ordinary final response; sending that answer through MCP again would create
+a second reply. This workflow does not require a separate Skill. Verification
+with clean CLIs and native subagents is described in
+[codex-coordination.md](codex-coordination.md).
 
-SSE даёт сигнал прочитать сохранённые входящие. После подключения, восстановления
-связи и при периодической проверке обработчик перечитывает inbox по страницам.
-Если CLI занят, входящее остаётся в Hub без ACK до терминального завершения хода.
-Для свободного CLI обработчик вызывает `thread/queue/add` на существующем thread.
-CLI автоматически запускает queued input как новый ход и сохраняет контекст.
-Если пользователь начинает ход одновременно, runtime управляет очередью.
+For routine local edits, the hook directs agents to local tools. Lease
+instructions live in the relevant MCP tool description and optional Skill;
+standard `SessionStart` does not suggest acquisition before every edit. A lease
+is an escalation for an observed conflict or an explicit request to serialize
+a resource.
 
-ACK следует после ответа runtime с `queuedSubmission` и записи приёма в локальный
-SQLite-журнал. Он означает принятие в очередь, а не выполнение поручения.
-Видимая пользователю очередь остаётся под его управлением; отмена принятого
-queued input не возвращает сообщение в Hub inbox.
-Обработчик не меняет модель, sandbox, approvals или инструкции диалога,
-не отвечает на запросы подтверждений и пользовательского ввода.
+## Acceptance and results
 
-Результат формируется только из `turn/completed` с `completed`, `failed` или
-`interrupted`, завершённых items и ошибки runtime. `Stop` запускает отсутствующий
-обработчик, но не считается терминальным событием: другой хук может продолжить
-тот же ход. `SessionEnd` останавливает обработчик; состояние сохраняется.
-Это событие относится к завершению runtime-сессии: при подключённых клиентах
-закрытие окна CLI может оставить её открытой. При архивировании диалога
-`SessionEnd` и остановка обработчика проверены. Для немедленной остановки
-всех обработчиков используйте `uninstall`.
-Следующий `SessionStart` при возобновлении того же диалога использует прежний UUID,
-квитанции приёма и outbox. Результаты на входящие `payload.type=turn_completed`
-не отправляются автоматически обратно, чтобы исключить бесконечный обмен.
+SSE signals that the bridge should read saved inbox entries. On connection,
+reconnect, and recovery checks, the bridge scans inbox pages. While CLI is busy,
+input remains in Hub without ACK until terminal completion of the current turn.
+For an idle CLI, the bridge calls `thread/queue/add` on the existing thread. CLI
+automatically runs the queued input as a new turn and retains context. If the
+user starts a turn concurrently, the runtime manages the queue.
 
-Перед отправкой сохраняется намерение приёма с точным текстом входящего.
-После обрыва обработчик сверяет runtime queue по `clientUserMessageId` и историю
-по userMessage; это позволяет восстановить приём после потерянного RPC-ответа.
-Результаты сохраняются до HTTP-отправки и повторяются при восстановлении Hub.
-Обрыв обработчика не закрывает shared daemon или CLI.
+ACK follows the runtime `queuedSubmission` response and a local SQLite acceptance
+receipt. It means queue acceptance, not task execution. The visible queue remains
+under user control; cancelling an accepted queued input does not return its
+message to Hub inbox. The bridge does not change the conversation's model,
+sandbox, approvals, or instructions, and does not answer approval or user-input
+requests.
 
-## Проверка
+Results come only from `turn/completed` with `completed`, `failed`, or
+`interrupted`, completed items, and the runtime error. `Stop` starts a missing
+bridge but is not terminal: another hook may continue the same turn.
+`SessionEnd` stops the bridge while preserving state. This event describes
+runtime session termination: with attached clients, closing a CLI window can
+leave the session open. Archiving a conversation has verified `SessionEnd`
+and bridge shutdown. Use `uninstall` to stop all integration bridges immediately.
+The next `SessionStart` on resume reuses the UUID, acceptance receipts, and outbox.
+Inputs with `payload.type=turn_completed` do not generate reciprocal automatic
+results, preventing endless exchanges.
+
+The same rule applies to `lock_granted` and `lock_expired`. The bridge binds
+observed lease grants to a runtime turn, journals release in its outbox, and
+releases on terminal completion even if the model forgot MCP release. A waiting
+request survives between turns. TTL covers a lost bridge; the contract and real
+two-CLI tests are in [codex-locks.md](codex-locks.md).
+
+Before queue submission, the bridge saves an acceptance intent with the exact
+input text. After a disconnect, it reconciles the runtime queue by
+`clientUserMessageId` and history by userMessage, recovering acceptance after
+a lost RPC response. Results persist before HTTP submission and retry after Hub
+recovery. A bridge disconnect does not close the shared daemon or CLI.
+
+## Verification
 
 ```sh
 .venv/bin/python scripts/check_codex_hooks.py --output /tmp/codex-cli-hooks.json
 ```
 
-Демо запускает два **обычных интерактивных CLI** в PTY с временными hooks/config,
-реальным входом через ссылку на существующий `auth.json` и временным Hub.
-Использует реальные ходы и квоту Codex. Только в изолированной конфигурации
-демо доверяет своим точным hook hashes; пользовательский config не изменяется.
+The demo starts two **ordinary interactive CLIs** in PTYs with temporary
+hooks/config, real authentication via a symlink to existing `auth.json`, and a
+temporary Hub. It uses real turns and Codex quota. Only the isolated config
+trusts its exact hook hashes; the user's config is unchanged.
 
-Проверяются автоматическая регистрация, выбор MCP tool моделью, результат worker
-и продолжение исходного оркестратора с сохранённым числом, неподтверждённый результат
-при занятом ходе, аварийный перезапуск Hub, переподключение обработчика и ввод
-пользователя в том же CLI. Ответы оркестратора: **41, 43, 45, 44**.
-Также проверяются сохранение исходных read-only/never разрешений CLI и остановка
-обработчиков через `SessionEnd` при архивировании временных диалогов.
-События успешной проверки: [codex-cli-hooks.json](evidence/codex-cli-hooks.json).
-Демо удаляет свою конфигурацию и базы при выходе.
+Checks cover automatic registration, model-selected MCP calls, worker results,
+continuation of the original orchestrator with a remembered number, an
+unacknowledged result during a busy turn, Hub crash/restart, bridge reconnect,
+and user input in the same CLI. Orchestrator answers: **41, 43, 45, 44**.
+The demo also verifies retained read-only/never permissions and bridge shutdown
+through `SessionEnd` when archiving temporary conversations. Successful events:
+[codex-cli-hooks.json](evidence/codex-cli-hooks.json). Temporary config and
+databases are deleted on exit.
 
-## Удаление и границы
+## Removal and limits
 
 ```sh
 .venv/bin/python scripts/codex_hooks.py uninstall
 ```
 
-Удаляются только записи интеграции, её неизменённый MCP-блок и останавливаются
-её обработчики. Локальные журналы сохраняются в `~/.codex/agent-hub` для
-восстановления. Удалять их следует после завершения нужных диалогов; история
-runtime и база Hub также нужны для восстановления. Записи сессий в Hub не
-имеют срока жизни и не означают присутствие пользователя онлайн.
+This removes owned integration entries and the unchanged owned MCP block, and
+stops integration bridges. Local journals remain in `~/.codex/agent-hub` for
+recovery. Delete them only after the required conversations finish; runtime
+history and the Hub database are also needed for recovery. Hub session records
+have no expiry and do not imply online presence.
 
-Поддержан обычный CLI с shared daemon на локальной Unix-системе. `--no-daemon`,
-Windows, IDE и Codex App этим путём не проверены. Обработчик подключается только
-к загруженному thread; не создаёт замену и не возобновляет закрытый пользователем
-диалог. Доверие к хукам требуется в каждом используемом `CODEX_HOME`.
+The supported path is an ordinary CLI with the shared daemon on a local Unix
+system. `--no-daemon`, Windows, IDE, and Codex App have not been verified through
+this path. The bridge attaches only to a loaded thread; it does not create a
+replacement or resume a conversation the user closed. Each `CODEX_HOME` needs
+its own hook trust.
 
-`thread/queue/*` — экспериментальный API проверенной версии. Его наличие
-подтверждено `codex app-server generate-json-schema --experimental` и реальным
-CLI-демо, а не только документацией. Транспорт и общий протокол описаны в
-[App Server](https://learn.chatgpt.com/docs/app-server), lifecycle и доверие —
-в [Hooks](https://learn.chatgpt.com/docs/hooks).
+`thread/queue/*` is an experimental API in the tested version. Its availability
+was verified with `codex app-server generate-json-schema --experimental` and
+the real CLI demo, beyond documentation alone. Transport and the shared protocol
+are described in [App Server](https://learn.chatgpt.com/docs/app-server), and
+lifecycle/trust in [Hooks](https://learn.chatgpt.com/docs/hooks).
 
-Hub, runtime и журнал не имеют общей транзакции. Если после принятия потеряны
-и runtime queue/history, и квитанция, возможен повтор; гарантии exactly-once
-исполнения нет. Побочные эффекты поручений должны учитывать `message_id`.
-Если терминальный результат runtime недоступен в событиях и истории,
-интеграция не выдумывает его. Локальные журналы и история растут без очистки.
-HTTP/MCP рассчитаны на доверенные локальные интеграции одного пользователя.
+Hub, runtime, and journal have no shared transaction. If both runtime
+queue/history and the receipt are lost after acceptance, duplicate execution
+is possible; there is no exactly-once execution guarantee. Task side effects
+should account for `message_id`. If terminal data are unavailable in both
+events and history, the integration does not invent a result. Local journals
+and history grow without cleanup. HTTP/MCP target trusted local integrations
+of one user.

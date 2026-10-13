@@ -1,0 +1,894 @@
+{
+  "version": "codex-cli 0.162.1",
+  "scenario": "natural",
+  "expect_local_only": true,
+  "evidence": {
+    "registered": {
+      "alpha": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+      "beta": "01a136fc-a09d-77d2-a054-fa9d230bf3f8"
+    },
+    "threads": {
+      "01a136fc-a09d-77d2-a054-fa9d230bf3f8": {
+        "role": "beta",
+        "parent_thread_id": null,
+        "metadata_parent_thread_id": null,
+        "source": "vscode",
+        "turns": [
+          {
+            "id": "01a136fc-a150-7a80-95cc-9be018cabd67",
+            "rootTurnId": "01a136fc-a150-7a80-95cc-9be018cabd67",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136fc-aa36-7b43-abca-b26d7e3aec22",
+                "clientId": "1fff9359-9b22-4229-bbf4-4e31788de390",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Reply READY only. Do not use tools.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_029d404a585af23b016ace96b4f1c8819185e961ba4e090b26",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923888,
+            "completedAt": 1791923893,
+            "durationMs": 4595
+          },
+          {
+            "id": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+            "rootTurnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136fc-b38e-7640-956a-5e14b5648bab",
+                "clientId": "cbc56344-3558-46e9-bbaf-0a1f719ad672",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "В settings.json установи max_retries=3. Сохрани остальные поля и проверь итог.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_029d404a585af23b016ace96b7acc881919f065279fa0e5ead",
+                "text": "Найду settings.json, установлю `max_retries` в `3` и проверю, что остальные поля сохранились.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-419dd38d-f3fd-4884-a1e2-c9c71edc796c",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc \"pwd; rg --files -g 'settings.json' -g 'AGENTS.md' -g '\"'!node_modules'\"' -g '\"'!vendor'\"'\"",
+                "cwd": "/tmp/hub-lease-d18bqm2a/project",
+                "processId": "70763",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "pwd; rg --files -g 'settings.json' -g 'AGENTS.md' -g '!node_modules' -g '!vendor'"
+                  }
+                ],
+                "aggregatedOutput": "/private/tmp/hub-lease-d18bqm2a/project\nsettings.json\n",
+                "exitCode": 0,
+                "durationMs": 752
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-ac165a9d-96d0-4426-a284-65cff1e478d5",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc 'cat settings.json'",
+                "cwd": "/tmp/hub-lease-d18bqm2a/project",
+                "processId": "58490",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "read",
+                    "command": "cat settings.json",
+                    "name": "settings.json",
+                    "path": "/tmp/hub-lease-d18bqm2a/project/settings.json"
+                  }
+                ],
+                "aggregatedOutput": "{\"timeout_ms\": 1000, \"max_retries\": 1, \"label\": \"fixture\"}\n",
+                "exitCode": 0,
+                "durationMs": 111
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-69cbd021-0a0d-467c-9f87-c5e57adc8e86",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc \"python3 - <<'PY'\nimport json\nfrom pathlib import Path\np = Path('settings.json')\noriginal = p.read_text()\nbefore = json.loads(original)\nupdated = original.replace('\\\"max_retries\\\": 1', '\\\"max_retries\\\": 3', 1)\nassert updated \"'!= original\np.write_text(updated)\nafter = json.loads(p.read_text())\nexpected = dict(before, max_retries=3)\nassert after == expected\nprint(p.read_text(), end='\"'')\nprint('Проверка пройдена: max_retries=3, остальные поля сохранены.')\nPY\"",
+                "cwd": "/tmp/hub-lease-d18bqm2a/project",
+                "processId": "83326",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\np = Path('settings.json')\noriginal = p.read_text()\nbefore = json.loads(original)\nupdated = original.replace('\"max_retries\": 1', '\"max_retries\": 3', 1)\nassert updated != original\np.write_text(updated)\nafter = json.loads(p.read_text())\nexpected = dict(before, max_retries=3)\nassert after == expected\nprint(p.read_text(), end='')\nprint('Проверка пройдена: max_retries=3, остальные поля сохранены.')\nPY"
+                  }
+                ],
+                "aggregatedOutput": "{\"timeout_ms\": 2000, \"max_retries\": 3, \"label\": \"fixture\"}\nПроверка пройдена: max_retries=3, остальные поля сохранены.\n",
+                "exitCode": 0,
+                "durationMs": 234
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_029d404a585af23b016ace96c5a86481918028a78b394effb9",
+                "text": "В [settings.json](/tmp/hub-lease-d18bqm2a/project/settings.json) установлено `max_retries: 3`. Проверка пройдена: остальные поля сохранены (`timeout_ms: 2000`, `label: \"fixture\"`).",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923893,
+            "completedAt": 1791923910,
+            "durationMs": 17795
+          }
+        ]
+      },
+      "01a136fc-9057-70c0-bd05-b3897c4fb4d8": {
+        "role": "alpha",
+        "parent_thread_id": null,
+        "metadata_parent_thread_id": null,
+        "source": "vscode",
+        "turns": [
+          {
+            "id": "01a136fc-90c7-7a43-8900-2541e1e79544",
+            "rootTurnId": "01a136fc-90c7-7a43-8900-2541e1e79544",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136fc-9e9d-7db3-b575-abb16f915648",
+                "clientId": "c736b777-385c-413d-85f8-817c1b0de97d",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Reply READY only. Do not use tools.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_04e389418b4e3134016ace96b2220c81918e7671eb9a5e5ecc",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923884,
+            "completedAt": 1791923890,
+            "durationMs": 6000
+          },
+          {
+            "id": "01a136fc-b350-7290-b346-60686c135a40",
+            "rootTurnId": "01a136fc-b350-7290-b346-60686c135a40",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136fc-b36b-7dd1-8a63-a3ba13d45650",
+                "clientId": "5bb55cba-a04e-4255-a328-87fff0b5346c",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "В settings.json установи timeout_ms=2000. Сохрани остальные поля и проверь итог.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_04e389418b4e3134016ace96b766f48191bf557c7d394b52c4",
+                "text": "Найду settings.json, изменю timeout_ms на 2000 и проверю, что остальные поля сохранились.\n",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-c25c31a1-15a4-41bc-b484-c93a40ba1a1b",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc \"pwd; rg --files -g 'settings.json' -g 'AGENTS.md' -g '\"'!node_modules'\"' -g '\"'!.git'\"'\"",
+                "cwd": "/tmp/hub-lease-d18bqm2a/project",
+                "processId": "18587",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "pwd; rg --files -g 'settings.json' -g 'AGENTS.md' -g '!node_modules' -g '!.git'"
+                  }
+                ],
+                "aggregatedOutput": "/private/tmp/hub-lease-d18bqm2a/project\nsettings.json\n",
+                "exitCode": 0,
+                "durationMs": 435
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-fd645aeb-8006-4886-b2e7-5b04e22113fc",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc 'cat settings.json'",
+                "cwd": "/tmp/hub-lease-d18bqm2a/project",
+                "processId": "67615",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "read",
+                    "command": "cat settings.json",
+                    "name": "settings.json",
+                    "path": "/tmp/hub-lease-d18bqm2a/project/settings.json"
+                  }
+                ],
+                "aggregatedOutput": "{\"timeout_ms\": 1000, \"max_retries\": 1, \"label\": \"fixture\"}\n",
+                "exitCode": 0,
+                "durationMs": 111
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-58c172ce-4495-4a7e-90d5-c77aa2cbf16c",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc \"python3 - <<'PY'\nimport json\nfrom pathlib import Path\np = Path('settings.json')\ns = p.read_text()\nbefore = json.loads(s)\nupdated = s.replace('\\\"timeout_ms\\\": 1000', '\\\"timeout_ms\\\": 2000', 1)\nassert updated \"'!= s\np.write_text(updated)\nafter = json.loads(p.read_text())\nexpected = dict(before, timeout_ms=2000)\nassert after == expected, (after, expected)\nprint(p.read_text(), end='\"'')\nprint('Проверено: timeout_ms=2000, остальные поля сохранены.')\nPY\"",
+                "cwd": "/tmp/hub-lease-d18bqm2a/project",
+                "processId": "29514",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\np = Path('settings.json')\ns = p.read_text()\nbefore = json.loads(s)\nupdated = s.replace('\"timeout_ms\": 1000', '\"timeout_ms\": 2000', 1)\nassert updated != s\np.write_text(updated)\nafter = json.loads(p.read_text())\nexpected = dict(before, timeout_ms=2000)\nassert after == expected, (after, expected)\nprint(p.read_text(), end='')\nprint('Проверено: timeout_ms=2000, остальные поля сохранены.')\nPY"
+                  }
+                ],
+                "aggregatedOutput": "{\"timeout_ms\": 2000, \"max_retries\": 1, \"label\": \"fixture\"}\nПроверено: timeout_ms=2000, остальные поля сохранены.\n",
+                "exitCode": 0,
+                "durationMs": 158
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_04e389418b4e3134016ace96c4c8848191924d612a69081f19",
+                "text": "В [settings.json](/tmp/hub-lease-d18bqm2a/project/settings.json) установлено `timeout_ms: 2000`. Проверено: остальные поля сохранены без изменений.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923893,
+            "completedAt": 1791923910,
+            "durationMs": 16955
+          }
+        ]
+      }
+    },
+    "trace": [
+      {
+        "seconds": 14.534,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turnId": "01a136fc-90c7-7a43-8900-2541e1e79544",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 12590,
+              "inputTokens": 12585,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12590,
+              "inputTokens": 12585,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 14.6,
+        "method": "thread/started",
+        "params": {
+          "thread": {
+            "id": "01a136fc-aa43-7082-8064-3416b15ee1d2",
+            "environments": [],
+            "extra": null,
+            "sessionId": "01a136fc-aa43-7082-8064-3416b15ee1d2",
+            "forkedFromId": null,
+            "parentThreadId": null,
+            "preview": "",
+            "ephemeral": true,
+            "section": null,
+            "sectionEnteredAt": null,
+            "projectId": null,
+            "historyMode": "paginated",
+            "modelProvider": "openai",
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": null,
+            "createdAt": 1791923890,
+            "updatedAt": 1791923890,
+            "recencyAt": 1791923890,
+            "status": {
+              "type": "idle"
+            },
+            "path": null,
+            "cwd": "/tmp/hub-lease-d18bqm2a/project",
+            "cliVersion": "0.162.1",
+            "originator": "codex-tui",
+            "source": "vscode",
+            "canAcceptDirectInput": true,
+            "threadSource": "thread_title",
+            "agentNickname": null,
+            "agentRole": null,
+            "gitInfo": null,
+            "name": null,
+            "daybreakEnabled": null,
+            "turns": []
+          }
+        }
+      },
+      {
+        "seconds": 16.771,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turnId": "01a136fc-a150-7a80-95cc-9be018cabd67",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 12588,
+              "inputTokens": 12583,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12588,
+              "inputTokens": 12583,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 16.88,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turn": {
+            "id": "01a136fc-a150-7a80-95cc-9be018cabd67",
+            "rootTurnId": "01a136fc-a150-7a80-95cc-9be018cabd67",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_029d404a585af23b016ace96b4f1c8819185e961ba4e090b26",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923888,
+            "completedAt": 1791923893,
+            "durationMs": 4595
+          }
+        }
+      },
+      {
+        "seconds": 16.886,
+        "prompt_role": "alpha",
+        "text": "В settings.json установи timeout_ms=2000. Сохрани остальные поля и проверь итог."
+      },
+      {
+        "seconds": 16.886,
+        "prompt_role": "beta",
+        "text": "В settings.json установи max_retries=3. Сохрани остальные поля и проверь итог."
+      },
+      {
+        "seconds": 16.911,
+        "method": "turn/started",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turn": {
+            "id": "01a136fc-b350-7290-b346-60686c135a40",
+            "rootTurnId": "01a136fc-b350-7290-b346-60686c135a40",
+            "items": [],
+            "itemsView": "notLoaded",
+            "status": "inProgress",
+            "error": null,
+            "startedAt": 1791923893,
+            "completedAt": null,
+            "durationMs": null
+          }
+        }
+      },
+      {
+        "seconds": 16.946,
+        "method": "turn/started",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turn": {
+            "id": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+            "rootTurnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+            "items": [],
+            "itemsView": "notLoaded",
+            "status": "inProgress",
+            "error": null,
+            "startedAt": 1791923893,
+            "completedAt": null,
+            "durationMs": null
+          }
+        }
+      },
+      {
+        "seconds": 23.008,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turnId": "01a136fc-b350-7290-b346-60686c135a40",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 25295,
+              "inputTokens": 25202,
+              "cachedInputTokens": 23552,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 93,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12705,
+              "inputTokens": 12617,
+              "cachedInputTokens": 12416,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 88,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 23.323,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 25293,
+              "inputTokens": 25198,
+              "cachedInputTokens": 23552,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 95,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12705,
+              "inputTokens": 12615,
+              "cachedInputTokens": 12416,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 90,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 25.139,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turnId": "01a136fc-b350-7290-b346-60686c135a40",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 38104,
+              "inputTokens": 37982,
+              "cachedInputTokens": 35968,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 122,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12809,
+              "inputTokens": 12780,
+              "cachedInputTokens": 12416,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 29,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 25.829,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 38101,
+              "inputTokens": 37977,
+              "cachedInputTokens": 34688,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 124,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12808,
+              "inputTokens": 12779,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 29,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 30.194,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turnId": "01a136fc-b350-7290-b346-60686c135a40",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 51157,
+              "inputTokens": 50871,
+              "cachedInputTokens": 48512,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 286,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13053,
+              "inputTokens": 12889,
+              "cachedInputTokens": 12544,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 164,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 31.285,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 51153,
+              "inputTokens": 50867,
+              "cachedInputTokens": 47232,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 286,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13052,
+              "inputTokens": 12890,
+              "cachedInputTokens": 12544,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 162,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 33.724,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turnId": "01a136fc-b350-7290-b346-60686c135a40",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 64351,
+              "inputTokens": 64020,
+              "cachedInputTokens": 61184,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 331,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13194,
+              "inputTokens": 13149,
+              "cachedInputTokens": 12672,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 45,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 33.852,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turn": {
+            "id": "01a136fc-b350-7290-b346-60686c135a40",
+            "rootTurnId": "01a136fc-b350-7290-b346-60686c135a40",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_04e389418b4e3134016ace96c4c8848191924d612a69081f19",
+                "text": "В [settings.json](/tmp/hub-lease-d18bqm2a/project/settings.json) установлено `timeout_ms: 2000`. Проверено: остальные поля сохранены без изменений.",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923893,
+            "completedAt": 1791923910,
+            "durationMs": 16955
+          }
+        }
+      },
+      {
+        "seconds": 34.591,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 64380,
+              "inputTokens": 64016,
+              "cachedInputTokens": 59904,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 364,
+              "reasoningOutputTokens": 16
+            },
+            "last": {
+              "totalTokens": 13227,
+              "inputTokens": 13149,
+              "cachedInputTokens": 12672,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 78,
+              "reasoningOutputTokens": 16
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 34.689,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turn": {
+            "id": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+            "rootTurnId": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_029d404a585af23b016ace96c5a86481918028a78b394effb9",
+                "text": "В [settings.json](/tmp/hub-lease-d18bqm2a/project/settings.json) установлено `max_retries: 3`. Проверка пройдена: остальные поля сохранены (`timeout_ms: 2000`, `label: \"fixture\"`).",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791923893,
+            "completedAt": 1791923910,
+            "durationMs": 17795
+          }
+        }
+      }
+    ],
+    "bridge_events": {
+      "alpha": [
+        {
+          "type": "bridge_connected",
+          "session_id": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "thread_id": "01a136fc-9057-70c0-bd05-b3897c4fb4d8"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turn_id": "01a136fc-90c7-7a43-8900-2541e1e79544",
+          "status": "completed",
+          "final_text": "READY"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136fc-9057-70c0-bd05-b3897c4fb4d8",
+          "turn_id": "01a136fc-b350-7290-b346-60686c135a40",
+          "status": "completed",
+          "final_text": "В [settings.json](/tmp/hub-lease-d18bqm2a/project/settings.json) установлено `timeout_ms: 2000`. Проверено: остальные поля сохранены без изменений."
+        }
+      ],
+      "beta": [
+        {
+          "type": "bridge_connected",
+          "session_id": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "thread_id": "01a136fc-a09d-77d2-a054-fa9d230bf3f8"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turn_id": "01a136fc-a150-7a80-95cc-9be018cabd67",
+          "status": "completed",
+          "final_text": "READY"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136fc-a09d-77d2-a054-fa9d230bf3f8",
+          "turn_id": "01a136fc-b34f-7ae2-afa6-31acf9b251d0",
+          "status": "completed",
+          "final_text": "В [settings.json](/tmp/hub-lease-d18bqm2a/project/settings.json) установлено `max_retries: 3`. Проверка пройдена: остальные поля сохранены (`timeout_ms: 2000`, `label: \"fixture\"`)."
+        }
+      ]
+    },
+    "disabled_personal_skills": [
+      "docx",
+      "find-skills",
+      "google-workspace",
+      "import-memory",
+      "morning",
+      "pdf",
+      "pptx",
+      "skill-creator",
+      "xlsx"
+    ],
+    "extra_skill": false,
+    "processes": {
+      "hub": 7977,
+      "cli": {
+        "alpha": 8016,
+        "beta": 8442
+      }
+    },
+    "checkpoints": [
+      {
+        "name": "initial",
+        "seconds": 16.886,
+        "settings": {
+          "timeout_ms": 1000,
+          "max_retries": 1,
+          "label": "fixture"
+        }
+      },
+      {
+        "name": "settled",
+        "seconds": 34.699,
+        "settings": {
+          "timeout_ms": 2000,
+          "max_retries": 3,
+          "label": "fixture"
+        }
+      }
+    ],
+    "final_settings": {
+      "timeout_ms": 2000,
+      "max_retries": 3,
+      "label": "fixture"
+    },
+    "summary": {
+      "mcp_calls": {
+        "beta": [],
+        "alpha": []
+      },
+      "automatic_result_inputs": {
+        "beta": 0,
+        "alpha": 0
+      },
+      "completion_to_recipient_turn_started": [],
+      "native_subagents": 0,
+      "runtime_turns": 4
+    },
+    "both_changes_preserved": true,
+    "peer_awareness_in_prompt": false,
+    "used_locks": false,
+    "token_usage": {
+      "01a136fc-9057-70c0-bd05-b3897c4fb4d8": {
+        "total": {
+          "totalTokens": 64351,
+          "inputTokens": 64020,
+          "cachedInputTokens": 61184,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 331,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "totalTokens": 13194,
+          "inputTokens": 13149,
+          "cachedInputTokens": 12672,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 45,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 475000
+      },
+      "01a136fc-a09d-77d2-a054-fa9d230bf3f8": {
+        "total": {
+          "totalTokens": 64380,
+          "inputTokens": 64016,
+          "cachedInputTokens": 59904,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 364,
+          "reasoningOutputTokens": 16
+        },
+        "last": {
+          "totalTokens": 13227,
+          "inputTokens": 13149,
+          "cachedInputTokens": 12672,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 78,
+          "reasoningOutputTokens": 16
+        },
+        "modelContextWindow": 475000
+      }
+    },
+    "lock_requests": [],
+    "first_work_turn_overlap_seconds": 16.906
+  },
+  "status": "passed"
+}

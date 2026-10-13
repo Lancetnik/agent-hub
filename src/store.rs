@@ -6,7 +6,7 @@ use std::{
 };
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
-use tokio::sync::broadcast;
+use tokio::sync::{Notify, broadcast};
 
 use crate::{
     messaging::{
@@ -41,11 +41,20 @@ impl From<rusqlite::Error> for StoreError {
 #[derive(Clone)]
 pub(crate) struct Store {
     connection: Arc<Mutex<Connection>>,
-    changes: broadcast::Sender<String>,
+    pub(crate) changes: broadcast::Sender<String>,
+    pub(crate) lock_changed: Arc<Notify>,
+    pub(crate) clock: Arc<dyn Fn() -> i64 + Send + Sync>,
 }
 
 impl Store {
     pub fn open(path: impl AsRef<Path>) -> rusqlite::Result<Self> {
+        Self::open_with_clock(path, Arc::new(crate::locks::now_ms))
+    }
+
+    pub(crate) fn open_with_clock(
+        path: impl AsRef<Path>,
+        clock: Arc<dyn Fn() -> i64 + Send + Sync>,
+    ) -> rusqlite::Result<Self> {
         let connection = Connection::open(path)?;
         connection.busy_timeout(Duration::from_secs(5))?;
         connection.execute_batch(
@@ -69,16 +78,29 @@ impl Store {
              );
              CREATE INDEX IF NOT EXISTS pending_inbox
                  ON messages(recipient_id, sequence) WHERE acknowledged = 0;
+             CREATE TABLE IF NOT EXISTS lock_requests (
+                 sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                 request_id TEXT UNIQUE NOT NULL,
+                 session_id TEXT NOT NULL REFERENCES sessions(session_id),
+                 resource TEXT NOT NULL,
+                 ttl_seconds INTEGER NOT NULL CHECK(ttl_seconds BETWEEN 1 AND 600),
+                 status TEXT NOT NULL CHECK(status IN ('acquired','waiting','released','expired','cancelled')),
+                 expires_at_ms INTEGER
+             );
+             CREATE UNIQUE INDEX IF NOT EXISTS one_lock_owner ON lock_requests(resource) WHERE status='acquired';
+             CREATE INDEX IF NOT EXISTS lock_queue ON lock_requests(resource, sequence) WHERE status='waiting';
              COMMIT;",
         )?;
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
             changes: broadcast::channel(256).0,
+            lock_changed: Arc::new(Notify::new()),
+            clock,
         })
     }
 
     // SQLite I/O and lock acquisition run off the async HTTP/MCP executor.
-    async fn interact<T, F>(&self, operation: F) -> Result<T, StoreError>
+    pub(crate) async fn interact<T, F>(&self, operation: F) -> Result<T, StoreError>
     where
         T: Send + 'static,
         F: FnOnce(&mut Connection) -> Result<T, StoreError> + Send + 'static,
@@ -151,6 +173,11 @@ impl Store {
                 }
                 if let Some(id) = &request.correlation_id {
                     nonblank("correlation_id", id)?;
+                }
+                if request.message_id.starts_with("hub-lock:") {
+                    return Err(StoreError::Invalid(
+                        "hub-lock: message IDs are reserved for lock notifications".into(),
+                    ));
                 }
 
                 // Serialize competing sends, including other connections to this database.
@@ -276,14 +303,14 @@ impl Store {
     }
 }
 
-fn nonblank(field: &str, value: &str) -> Result<(), StoreError> {
+pub(crate) fn nonblank(field: &str, value: &str) -> Result<(), StoreError> {
     if value.trim().is_empty() {
         return Err(StoreError::Invalid(format!("{field} must not be blank")));
     }
     Ok(())
 }
 
-fn registered(connection: &Connection, field: &str, id: &str) -> Result<(), StoreError> {
+pub(crate) fn registered(connection: &Connection, field: &str, id: &str) -> Result<(), StoreError> {
     let exists: bool = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM sessions WHERE session_id = ?1)",
         [id],

@@ -1,135 +1,159 @@
 # Agent Hub
 
-Локальный прототип на Rust, axum и официальном MCP SDK `rmcp`.
-Реализованы четыре этапа: внешняя интеграция регистрирует сессии по HTTP,
-агенты находят друг друга и обмениваются сохраняемыми сообщениями через MCP,
-а результаты ходов реального Codex worker автоматически попадают во входящие оркестратора
-и продолжают его существующую сессию с сохранением контекста.
-Сессии, сообщения и подтверждения приёма (ACK) хранятся в SQLite. Hub не запускает сессии.
+A local prototype built with Rust, axum, and the official `rmcp` MCP SDK.
+Four milestones are implemented: external integrations register sessions over
+HTTP; agents discover each other and exchange durable messages through MCP;
+real Codex worker turn results automatically enter the orchestrator's inbox and
+continue its existing conversation with retained context. SQLite stores sessions,
+messages, and acceptance acknowledgements (ACKs). Hub does not start sessions.
 
-## Запуск
+The target workflow is local use with a running Hub and ordinary Codex CLIs:
+a task arrives in an existing conversation, a busy session accepts it after its
+current turn finishes, and the worker result automatically continues the
+orchestrator's conversation. Runtime integration detects completion; the model
+need not call a completion tool.
 
-Нужны Rust 1.88+ и Cargo.
+Coordination with two workers, including a native Codex subagent, was verified
+in clean CLI sessions. `SessionStart` explains how to finish a turn to receive
+automatic responses; this workflow requires no separate Skill.
+[Scenarios and verification results](docs/codex-coordination.md).
+
+[Negotiation between two sessions after losing a shared-file edit](docs/codex-file-conflicts.md)
+was also verified. For an observed edit conflict or an explicit agreement to
+serialize a resource, [MCP leases with TTL and FIFO](docs/codex-locks.md) are
+available: the waiting agent finishes its turn and automatically continues on
+`lock_granted`. Default TTL is 120 seconds, range 1–600; the bridge releases
+observed grants at turn completion. Coordination is cooperative; Hub cannot
+prevent physical file writes after expiry. Routine local edits use local tools.
+Checking Hub or acquiring a lock before every write is unnecessary; a peer
+registration alone does not establish a conflict.
+
+## Running Hub
+
+Requires Rust 1.88+ and Cargo.
 
 ```sh
 cargo run
 ```
 
-По умолчанию сервер слушает `127.0.0.1:7331`:
+The default listener is `127.0.0.1:7331`:
 
-- `GET /health` — ответ `ok`;
-- `POST /sessions` — регистрация или обновление сессии;
-- `POST /turn-results` — сохранение терминального результата хода как адресного сообщения;
-- `GET /sessions/{session_id}/events` — SSE-сигнал о доступных входящих;
-- `GET /sessions/{session_id}/inbox?limit=100&cursor=...` — входящие для внешнего адаптера;
-- `POST /sessions/{session_id}/ack` с `{"message_id":"..."}` — ACK от адаптера;
-- `/mcp` — MCP через Streamable HTTP;
-- `hub_ping({"message": "привет"})` — проверка подключения;
-- `hub_list_sessions({})` — список зарегистрированных сессий;
-- `hub_lookup_session({"session_id": "worker"})` — поиск по стабильному ID;
-- `hub_send_message({...})` — сохранение адресного сообщения;
-- `hub_read_inbox({"session_id": "worker"})` — неподтверждённые входящие;
-- `hub_ack_message({"session_id": "worker", "message_id": "request-1"})` — подтверждение приёма.
+- `GET /health` — returns `ok`.
+- `POST /sessions` — registers or updates a session.
+- `POST /turn-results` — saves a terminal turn result as an addressed message.
+- `GET /sessions/{session_id}/events` — SSE signal for available inbox entries.
+- `GET /sessions/{session_id}/inbox?limit=100&cursor=...` — inbox for external adapters.
+- `POST /sessions/{session_id}/ack` with `{"message_id":"..."}` — adapter ACK.
+- `POST /locks/acquire`, `POST /locks/release` — acquire and release a lease.
+- `GET /locks/requests/{request_id}?session_id=...` — inspect an owned request.
+- `/mcp` — MCP over Streamable HTTP.
+- `hub_ping({"message":"hello"})` — connectivity check.
+- `hub_list_sessions({})` — registered sessions.
+- `hub_lookup_session({"session_id":"worker"})` — lookup by stable ID.
+- `hub_send_message({...})` — persist an addressed message.
+- `hub_read_inbox({"session_id":"worker"})` — unacknowledged inbox entries.
+- `hub_ack_message({"session_id":"worker","message_id":"request-1"})` — acceptance ACK.
+- `hub_acquire_lock({"session_id":"worker","request_id":"worker:edit-1","resource":"/checkout/file","ttl_seconds":120})` — a lease or FIFO waiting.
+- `hub_release_lock({"session_id":"worker","request_id":"worker:edit-1"})` — release or cancel waiting.
 
-Адрес, файл базы и уровень логирования можно настроить:
+Configure the listener, database path, and logging:
 
 ```sh
 AGENT_HUB_BIND=127.0.0.1:8000 AGENT_HUB_DB=/tmp/my-hub.sqlite3 RUST_LOG=agent_hub=debug,rmcp=info cargo run
 ```
 
-Ctrl-C завершает HTTP-сервер и MCP-соединения.
-По умолчанию база — `agent-hub.sqlite3` в текущей директории; при перезапуске
-нужно использовать тот же файл. Родительский каталог должен существовать.
-SQLite входит в сборку через `rusqlite` с `bundled`; отдельная установка SQLite не нужна.
-Если базу нельзя открыть или создать, Hub завершает запуск с ошибкой.
+Ctrl-C shuts down the HTTP server and MCP connections. The default database is
+`agent-hub.sqlite3` in the current directory; reuse it after restart. Its parent
+directory must exist. SQLite is bundled through rusqlite; no separate SQLite
+installation is needed. Hub exits with an error if it cannot open/create the database.
 
-## Регистрация сессий
+## Session registration
 
-Внешний hook или адаптер передаёт три обязательных строковых поля:
+An external hook or adapter submits three required string fields:
 
 ```sh
 curl --fail-with-body http://127.0.0.1:7331/sessions \
   -H 'Content-Type: application/json' \
-  -d '{"session_id":"orchestrator","runtime_id":"external-thread-a","display_name":"Оркестратор"}'
+  -d '{"session_id":"orchestrator","runtime_id":"external-thread-a","display_name":"Orchestrator"}'
 
 curl --fail-with-body http://127.0.0.1:7331/sessions \
   -H 'Content-Type: application/json' \
   -d '{"session_id":"worker","runtime_id":"external-thread-b","display_name":"Worker"}'
 ```
 
-- `session_id` — стабильный адрес сессии в Hub, выбранный внешней интеграцией.
-  При повторной регистрации нужно передавать тот же ID.
-- `runtime_id` — внешний идентификатор сессии/диалога в runtime.
-- `display_name` — отображаемое имя; одинаковые имена допустимы.
+- `session_id`: stable Hub address selected by the external integration. Reuse
+  it when registering again.
+- `runtime_id`: the runtime's external session/conversation identifier.
+- `display_name`: a display label; duplicate names are allowed.
 
-Успешная регистрация возвращает HTTP 200 и переданную запись. Повторный POST
-с тем же `session_id` заменяет её, включая `runtime_id` и `display_name`,
-без создания дубля. Значения сохраняются буквально; пустые и состоящие только
-из пробелов строки отклоняются с HTTP 400 и JSON `{"error":"<field> must not be blank"}`.
-Отсутствующие поля, неверные типы и неизвестные поля отклоняются с HTTP 422.
+Success returns HTTP 200 and the submitted record. Another POST with the same
+session_id replaces the record, including runtime_id and display_name, without
+a duplicate. Values are preserved verbatim; empty or whitespace-only strings
+return HTTP 400 with `{"error":"<field> must not be blank"}`. Missing, mistyped,
+or unknown fields return HTTP 422.
 
-`hub_list_sessions` возвращает `{"sessions":[...]}` в порядке `session_id`.
-Выбрав адресата по имени, можно вызвать `hub_lookup_session` с его ID:
-ответ — `{"session":{...}}`, а для неизвестного ID — `{"session":null}`.
-Успешные MCP tools возвращают JSON в `structuredContent` и текстовом содержимом ответа.
-HTTP и разные MCP-подключения используют общее SQLite-хранилище.
+`hub_list_sessions` returns `{"sessions":[...]}` ordered by session_id. Once you
+select a recipient by name, call `hub_lookup_session` with its ID: it returns
+`{"session":{...}}` or `{"session":null}` for an unknown ID. Successful MCP tools
+return JSON in structuredContent and text content. HTTP and separate MCP
+connections share the same SQLite store.
 
-## Адресные сообщения
+## Direct messages
 
-Обе сессии должны быть зарегистрированы. Отправитель передаёт стабильные ID явно:
+Both sessions must be registered. The sender supplies stable IDs explicitly:
 
 ```json
 {
   "message_id": "request-1",
   "sender_id": "orchestrator",
   "recipient_id": "worker",
-  "payload": {"text": "Посчитай 2 + 2"},
+  "payload": {"text": "Compute 2 + 2"},
   "correlation_id": "task-1"
 }
 ```
 
-`hub_send_message` принимает эти аргументы и возвращает `{"message":{...}}`:
-переданные поля, сохраняемый `sequence` и `acknowledged`. `payload` — любое JSON-значение,
-включая `null`; `correlation_id` необязателен и возвращается как `null`, если не задан.
-Идентификаторы не должны быть пустыми или состоять из пробелов; значения сохраняются буквально.
-Все новые инструменты отклоняют неизвестные поля и неправильные типы аргументов.
+`hub_send_message` accepts these arguments and returns `{"message":{...}}` with
+the supplied fields, durable sequence, and acknowledged flag. Payload may be
+any JSON value, including null. Correlation is optional and returns null when
+omitted. IDs must be nonblank; values are preserved verbatim. Tools reject
+unknown fields and incorrect argument types.
 
-- `message_id` выбирает отправитель, например UUID; он уникален во всём Hub.
-  Повтор с теми же данными возвращает прежнее сообщение с тем же `sequence` и текущим ACK.
-  Другие данные с тем же ID вызывают ошибку. ACK не позволяет использовать ID заново.
-- Ответ получает новый `message_id` и может повторить `correlation_id` запроса.
-- Успешный send означает, что Hub сохранил сообщение. Неизвестные sender/recipient вызывают
-  ошибку без создания записи. Выполнение порученной задачи оценивает оркестратор.
+- The sender chooses message_id, such as a UUID; it is unique across Hub. An
+  identical retry returns the existing message with its sequence and current
+  ACK. Different data with the same ID fail. ACK does not allow ID reuse.
+- A reply uses a new message_id and may reuse the request's correlation_id.
+- Successful send means Hub persisted the message. Unknown sender/recipient
+  returns an error without a record. The orchestrator assesses task execution.
 
-Чтение входящих worker:
+Read the worker's inbox:
 
 ```text
 hub_read_inbox({"session_id":"worker","limit":100})
-→ {"messages":[...],"next_cursor":null}
+-> {"messages":[...],"next_cursor":null}
 ```
 
-Входящие содержат только неподтверждённые сообщения в порядке `sequence`.
-Чтение ничего не подтверждает: сообщение можно прочитать повторно, в том числе после перезапуска.
-Для страниц передавайте `next_cursor` следующему вызову как `cursor`; это исключительная
-нижняя граница по `sequence`. `limit` по умолчанию 100, допустимы значения 1–1000.
-Порядковые номера общие для Hub и могут иметь пропуски во входящих отдельной сессии.
-`next_cursor: null` означает конец текущего просмотра. **Каждый новый опрос начинайте без
-курсора**, чтобы снова получить ранее прочитанные сообщения без ACK. Просмотр нескольких
-страниц не фиксирует снимок inbox: ACK и новые сообщения между вызовами меняют следующие страницы.
+Inbox contains only unacknowledged messages ordered by sequence. Reading does
+not ACK; a message can be read repeatedly, including after restart. For pages,
+pass next_cursor as cursor to the next call: an exclusive lower sequence bound.
+Default limit is 100, range 1–1000. Sequence numbers are global to Hub and may
+have gaps in one recipient's inbox. `next_cursor: null` ends the current scan.
+**Start every new scan without a cursor**, so previously read messages without
+ACK are included again. Pagination does not freeze an inbox snapshot: ACKs and
+new messages between calls can change subsequent pages.
 
 ```text
 hub_ack_message({"session_id":"worker","message_id":"request-1"})
-→ {"session_id":"worker","message_id":"request-1","acknowledged":true}
+-> {"session_id":"worker","message_id":"request-1","acknowledged":true}
 ```
 
-ACK подтверждает приём получателем и убирает сообщение из inbox. Повторный ACK успешен.
-Другой получатель и неизвестное сообщение вызывают ошибку. ACK сохраняется при перезапуске;
-само сообщение остаётся в базе. ACK не означает успешного выполнения задачи.
-Ошибки операций возвращаются как MCP tool result с `isError: true` и текстовым пояснением.
+ACK confirms recipient acceptance and removes the message from inbox. Repeated
+ACK succeeds. Another recipient or an unknown message fails. ACK survives
+restart; the message itself remains in the database. ACK does not imply task
+success. Operation errors return MCP tool results with isError=true and an explanation.
 
-## Результаты ходов
+## Turn results
 
-Внешняя интеграция сообщает завершение хода через HTTP; вызов tool моделью не требуется:
+External integration reports turn completion over HTTP; no model tool call is needed:
 
 ```sh
 curl --fail-with-body http://127.0.0.1:7331/turn-results \
@@ -137,31 +161,31 @@ curl --fail-with-body http://127.0.0.1:7331/turn-results \
   -d '{"session_id":"worker","runtime_id":"external-thread-b","turn_id":"turn-1","recipient_id":"orchestrator","correlation_id":"task-1","status":"completed","final_text":"4","artifact_refs":[],"error":null}'
 ```
 
-Worker и оркестратор должны быть зарегистрированы. Обязательны непустые строковые
-`session_id`, `runtime_id`, `turn_id`, `recipient_id`, `correlation_id` и терминальный
-`status`: `completed`, `failed` или `interrupted`. `final_text` — строка или `null`,
-`error` — сведения runtime в JSON или `null`; если эти поля не переданы, сохраняется
-`null`. `artifact_refs` — массив строк, по умолчанию пустой. Неизвестные поля,
-неверные типы и нетерминальный статус дают HTTP 422; пустые ID, неизвестные сессии
-и конфликт повторного события — HTTP 400. Ошибка базы — HTTP 500 с JSON `error`.
+Worker and orchestrator must be registered. Required nonblank string fields:
+session_id, runtime_id, turn_id, recipient_id, correlation_id, and a terminal
+status: completed, failed, or interrupted. `final_text` is a string or null;
+`error` is runtime JSON or null. Both default to null when omitted. `artifact_refs`
+is a string array, empty by default. Unknown/mistyped fields and nonterminal
+status return HTTP 422; blank IDs, unknown sessions, and conflicting retries
+return HTTP 400. Database errors return HTTP 500 with JSON error.
 
-Успех возвращает HTTP 200 с `{"message":{...}}`; сообщение доступно через
-`hub_read_inbox`. Его `payload.type` — `turn_completed`, а payload содержит
-`runtime_id`, `turn_id`, `status`, `final_text`, `artifact_refs`, `error`.
-`sender_id` — worker, `recipient_id` и `correlation_id` задаёт внешняя интеграция.
-Статус описывает завершение хода; успех порученной задачи оценивает оркестратор.
-`null` вместо текста не заменяется фиктивным успешным ответом.
+Success returns HTTP 200 with `{"message":{...}}`, available through
+hub_read_inbox. Payload.type is turn_completed; payload contains runtime_id,
+turn_id, status, final_text, artifact_refs, and error. Sender_id is the worker;
+recipient_id and correlation_id come from the external integration. Status
+means turn completion; the orchestrator assesses task success. Missing text is
+not replaced by an invented successful response.
 
-Hub сам вычисляет `message_id` из тройки `(session_id, runtime_id, turn_id)`.
-Повтор с теми же данными возвращает то же сообщение с прежним `sequence` и текущим
-ACK, включая повторы после перезапуска. Другие данные для этой тройки отклоняются;
-смена адресата или корреляции не создаёт второго результата. Отложенное событие
-сохраняет исходный `runtime_id`, даже если регистрация уже обновлена на новое подключение.
-Результат хранится в той же SQLite-таблице сообщений и использует прежние read/ACK.
+Hub derives message_id from `(session_id, runtime_id, turn_id)`. An identical
+retry returns the same message, sequence, and current ACK, including after
+restart. Different data for that tuple fail; changing recipient or correlation
+does not create another result. A delayed event keeps its original runtime_id
+even after registration has changed. Results use the same message table and
+existing read/ACK operations.
 
-## Обычные сессии Codex CLI через хуки
+## Ordinary Codex CLI sessions through hooks
 
-При запущенном Hub установите интеграцию из корня репозитория:
+With Hub running, install from the repository root:
 
 ```sh
 python3 -m venv .venv
@@ -170,57 +194,65 @@ python3 -m venv .venv
 codex
 ```
 
-В `/hooks` доверьте команды **Agent Hub ordinary CLI integration**, затем
-запустите новый `codex` или `codex resume`. Теперь обычный запуск автоматически
-регистрирует настоящий CLI-диалог и подключает доставку Hub. Откройте вторую
-сессию в другом терминале и поручите оркестратору найти её через `hub_list_sessions`
-и отправить работу через `hub_send_message`. Собственный UUID сообщается модели
-хуком; имя сессии берётся из текущего каталога.
+In `/hooks`, trust the **Agent Hub ordinary CLI integration** commands, then
+start a new codex or codex resume. Ordinary startup now automatically registers
+the real CLI conversation and attaches delivery. Open another session in a
+second terminal and ask the orchestrator to find it through hub_list_sessions
+and send work through hub_send_message. The hook supplies the model's own UUID;
+the session name comes from its current directory.
 
-Worker автоматически возвращает результат хода. Свободный оркестратор начинает
-новый ход в том же диалоге; занятый сначала заканчивает текущий ход. Пользователь
-продолжает работать через обычный CLI со своими настройками и подтверждениями.
-Обработчик связи подключается к существующему shared daemon и не запускает другую
-сессию. Установка сохраняет существующие hooks/config.
+The worker automatically returns its turn result. An idle orchestrator starts
+a new turn in the same conversation; a busy one first finishes its current turn.
+The user retains ordinary CLI settings and approval control. The bridge attaches
+to the existing shared daemon and does not launch a replacement session.
+Installation preserves existing hooks/config.
 
-Полная проверка с двумя настоящими интерактивными CLI, временной конфигурацией
-и собственным Hub использует реальные ходы и квоту Codex:
+Short core-flow check with two real CLIs and an owned temporary Hub:
+
+```sh
+.venv/bin/python scripts/check_codex_hooks.py --smoke --max-seconds 240
+```
+
+It verifies registration, an MCP assignment, worker completion without MCP calls,
+and continuation of the original orchestrator conversation with retained context.
+
+The full check uses two real interactive CLIs, temporary config, and its own
+Hub. It consumes real turns and Codex quota:
 
 ```sh
 .venv/bin/python scripts/check_codex_hooks.py
 ```
 
-Она проверяет регистрацию через хуки, MCP-поручение, автоматический результат,
-сохранённый контекст, занятый ход, перезапуск Hub, переподключение и пользовательский
-ввод. Удаление: `.venv/bin/python scripts/codex_hooks.py uninstall`.
-Установка, ACK, lifecycle и границы поддержки описаны в
-[интеграции CLI через хуки](docs/codex-hooks.md).
+It covers hook registration, MCP assignment, automatic result, retained context,
+a busy turn, Hub restart, reconnect, and user input. Uninstall with
+`.venv/bin/python scripts/codex_hooks.py uninstall`. Installation, ACK, lifecycle,
+and support limits: [CLI hook integration](docs/codex-hooks.md).
 
-## Внешний клиент App Server
+## External App Server client
 
-Нужны Python 3.11+ и установленный Codex с выполненным входом. Демо использует
-реальные ходы и квоту Codex; автоматически собирает и запускает временный Hub:
+Requires Python 3.11+ and an installed, authenticated Codex. The demo uses real
+turns and quota, automatically building and starting a temporary Hub:
 
 ```sh
 python3 scripts/check_codex_delivery.py
 ```
 
-Оркестратор в настоящем LLM-ходе отправляет поручение через MCP. Worker принимает
-его, завершает ход без completion tool, а внешний адаптер сохраняет результат.
-Оркестратор автоматически начинает следующий ход в том же thread и использует
-сохранённый контекст. Затем демо проверяет занятого оркестратора, отключение
-его адаптера, аварийный перезапуск Hub и возобновление исходного thread.
-Успех заканчивается `PASS`. Временные базы удаляются, история Codex остаётся
-в его обычном хранилище для `thread/resume`.
+In a real LLM turn, the orchestrator sends an assignment through MCP. The worker
+accepts it and finishes without a completion tool; its external adapter saves
+the result. The orchestrator automatically starts another turn in the same
+thread using retained context. The demo then checks a busy orchestrator, adapter
+disconnect, Hub crash/restart, and resume of the original thread. Success ends
+with PASS. Temporary databases are deleted; Codex history remains in its ordinary
+store for thread/resume.
 
-При отдельно запущенном Hub можно держать две сессии в двух терминалах. Сначала worker:
+With a separately running Hub, use two terminals. Start the worker:
 
 ```sh
 python3 scripts/codex_session.py --session-id worker \
   --state .agent-hub/worker.sqlite3 --report-results
 ```
 
-Затем оркестратор:
+Then the orchestrator:
 
 ```sh
 python3 scripts/codex_session.py --session-id orchestrator \
@@ -228,37 +260,35 @@ python3 scripts/codex_session.py --session-id orchestrator \
   'Send worker a Hub message using hub_send_message: message_id=task-1, sender_id=orchestrator, recipient_id=worker, correlation_id=task-1, payload={"text":"Compute 2 + 2. Reply with the number only. Do not use tools."}. Then reply WAITING. When a turn_completed result arrives, report its final_text and do not send another message.'
 ```
 
-Адаптеры запускает пользователь, Hub не управляет процессами Codex. Один файл
-`--state` соответствует одной сессии; при повторном запуске с тем же файлом
-возобновляется прежний thread, а начальный prompt не повторяется.
-Worker с `--report-results` автоматически отвечает отправителю каждого принятого
-сообщения после терминального события runtime, сохраняя корреляцию.
-Оркестратору этот флаг не нужен: его дальнейшие действия определяет контекст.
-В stdout адаптера видны ID принятого сообщения, нового хода и итоговый текст.
+The user starts these adapters; Hub does not manage Codex processes. Each state
+file belongs to one session; restarting with the same file resumes its thread
+without repeating the initial prompt. With report-results, a worker
+returns a terminal result to each accepted message's sender, retaining correlation.
+An orchestrator does not need that flag: its context determines subsequent actions.
+Adapter stdout reports accepted message IDs, turn IDs, and final text.
 
-SSE сообщает только о необходимости чтения. При подключении, переподключении
-и периодической проверке адаптер читает сохранённые входящие с начала, используя
-курсоры для страниц. Занятая сессия сначала завершает текущий ход.
-ACK отправляется после принятия `turn/start` runtime и локального сохранения
-его ID. Повтор ACK после потерянного HTTP-ответа использует сохранённую запись
-и не запускает второй ход. Подробности и границы доставки:
-[постоянный адаптер Codex](docs/codex-delivery.md).
+SSE signals only that a read is needed. On connection, reconnect, and recovery
+checks, the adapter scans durable inbox from the start, using cursors for pages.
+A busy session first finishes its current turn. ACK follows runtime acceptance
+of turn/start and local persistence of the turn ID. Retrying a lost HTTP ACK
+uses the receipt without starting another turn. Details:
+[persistent Codex adapter](docs/codex-delivery.md).
 
-## Демо третьего этапа
+## Milestone 3 demo
 
-Нужны Python 3.11+ и установленный Codex с выполненным входом. Демо запускает
-реальный inference и использует квоту Codex:
+Requires Python 3.11+ and installed, authenticated Codex. Runs real inference
+and consumes quota:
 
 ```sh
 cargo run --example turn_results_demo
 ```
 
-Оно само поднимает временный Hub и запускает внешний адаптер с настоящим ходом Codex.
-Worker автоматически регистрируется, вычисляет `2 + 2`, и результат `4` появляется
-во входящих оркестратора через MCP со связью с поручением. Демо проверяет повторную
-отправку, перезапуск сервера с той же базой и повтор после ACK. Успех заканчивается `PASS`.
+It starts a temporary Hub and external adapter with a real Codex turn. The worker
+registers automatically, computes 2 + 2, and result 4 appears in the orchestrator's
+MCP inbox with assignment correlation. The demo checks repeated submission,
+server restart with the same database, and retry after ACK. Success ends with PASS.
 
-При уже запущенном Hub и зарегистрированном оркестраторе можно запускать worker отдельно:
+With Hub running and an orchestrator registered, run a worker separately:
 
 ```sh
 python3 scripts/codex_worker.py \
@@ -266,93 +296,92 @@ python3 scripts/codex_worker.py \
   'Compute 2 + 2. Reply with the single digit only. Do not use tools.'
 ```
 
-Адаптер принимает результат из событий Codex App Server, сохраняет недоставленные
-HTTP-события в локальную outbox и печатает точное событие JSON в stdout.
-Повтор сохранённых событий без запуска Codex: `python3 scripts/codex_worker.py --retry`.
-По умолчанию outbox — `.agent-hub/outbox.sqlite3`; `--outbox` меняет её путь.
-Поддержан один новый thread и один ход на запуск; worker использует `read-only`
-sandbox. Проверки callbacks, пример `Stop`, продолжившего ход, и ограничения
-описаны в [подключении Codex](docs/codex-lifecycle.md).
+The adapter consumes App Server events, saves undelivered HTTP events in a local
+outbox, and prints exact event JSON to stdout. Retry saved events without Codex:
+`python3 scripts/codex_worker.py --retry`. Default outbox is
+`.agent-hub/outbox.sqlite3`; override with --outbox. One new thread and one turn
+per launch are supported; the worker uses read-only sandbox. Callback checks,
+a Stop continuation example, and limits:
+[Codex lifecycle integration](docs/codex-lifecycle.md).
 
-## Демо второго этапа
+## Milestone 2 demo
 
 ```sh
 cargo run --example messaging_demo
 ```
 
-Демо самостоятельно поднимает Hub на свободном локальном порту с временной SQLite-базой;
-отдельный `cargo run` не нужен. Оно регистрирует две внешние сессии, отправляет сообщение
-через MCP, останавливает HTTP/MCP-сервер и открывает ту же базу заново. Worker читает
-сохранившееся сообщение, подтверждает приём и отвечает с тем же `correlation_id`.
-После второй остановки и открытия базы демо проверяет сохранённый ACK и входящий ответ.
-Повторные read, send и ACK также проверяются; успешный результат заканчивается `PASS`.
-База демо удаляется при выходе. Интеграционные тесты дополнительно проверяют два
-аварийных завершения и повторных запуска отдельного процесса Hub.
+This starts Hub on a free local port with a temporary SQLite database; a separate
+cargo run is unnecessary. It registers two external sessions, sends an MCP
+message, stops HTTP/MCP, and reopens the same database. The worker reads the
+persisted message, ACKs, and replies with the same correlation_id. After a second
+restart the demo checks the retained ACK and reply. Repeated read/send/ACK are
+also checked; success ends with PASS. The database is deleted on exit. Integration
+tests additionally perform two crash/restart cycles of a separate Hub process.
 
-## Демо первого этапа
+## Milestone 1 demo
 
-При запущенном `cargo run`, в другом терминале:
+With cargo run active, in another terminal:
 
 ```sh
 cargo run --example sessions_demo
 ```
 
-Демо отправляет реальные HTTP-запросы от имени внешней интеграции, регистрирует
-оркестратора и worker, проверяет обнаружение обоих MCP-инструментов, list и lookup.
-Затем обновляет имя worker, переподключается по MCP и проверяет обновлённую запись
-и прежнее число сессий. На новом Hub число записей остаётся равным двум.
-Каждый запуск демо использует новые ID и добавляет две сессии.
+The demo sends real HTTP requests as an external integration, registers an
+orchestrator and worker, and verifies discovery of the session MCP tools, list,
+and lookup. It updates the worker name, reconnects through MCP, and checks the
+updated record and unchanged session count. A fresh Hub ends with two records.
+Each invocation uses fresh IDs and adds two sessions.
 
-Для другого адреса:
+For another address:
 
 ```sh
 AGENT_HUB_URL=http://127.0.0.1:8000 cargo run --example sessions_demo
 ```
 
-Это демонстрация серверного контракта регистрации. Реальный runtime проверяет
-`turn_results_demo` через внешний адаптер Codex App Server.
+This demonstrates server registration. Real runtime integration is verified by
+turn_results_demo through the external Codex App Server adapter.
 
-## Проверка через Codex
+## Checking through Codex
 
-При запущенном сервере, в другом терминале:
+With Hub running, in another terminal:
 
 ```sh
 python3 scripts/check_codex.py
 ```
 
-Для проверки новых инструментов через две реальные временные сессии Codex:
+Check messaging tools through two temporary real Codex sessions:
 
 ```sh
 python3 scripts/check_codex.py --messaging
 ```
 
-Этот режим дополнительно регистрирует два thread в Hub, проверяет send/read/ACK,
-повторные вызовы и коррелированный ответ. Он добавляет две записи сессий и два сообщения
-в выбранную базу Hub. Как и базовая проверка, он вызывает инструменты напрямую через
-App Server; LLM turn и выбор инструмента моделью не запускаются.
+This additionally registers two threads and checks send/read/ACK, retries, and
+a correlated reply. It adds two session records and two messages to the selected
+Hub database. Like the base probe, it calls tools directly through App Server;
+it does not run an LLM turn or test model tool selection.
 
-Скрипт запускает установленный `codex app-server`, создаёт временный thread,
-проверяет обнаружение `hub_ping` и вызывает его через `mcpServer/tool/call`.
-Случайная строка в запросе должна совпасть с ответом сервера. Скрипт не запускает
-LLM turn и не меняет конфигурационные файлы Codex: MCP-конфиг передаётся через
-аргумент `-c` только запущенному процессу. Нужен Codex с поддержкой этого API.
+The script starts installed codex app-server, creates a temporary thread,
+checks hub_ping discovery, and calls it through mcpServer/tool/call. The returned
+random string must match its input. It does not run inference or change Codex
+config files: only the started process receives its MCP override through -c.
+Codex must support that API.
 
-Для другого адреса:
+For another endpoint:
 
 ```sh
 python3 scripts/check_codex.py --url http://127.0.0.1:8000/mcp
 ```
 
-Чтобы использовать tool в обычной сессии Codex, можно передать конфиг на один запуск:
+For a single ordinary session, pass the endpoint on startup:
 
 ```sh
 codex -c 'mcp_servers.agent_hub.url="http://127.0.0.1:7331/mcp"'
 ```
 
-Затем попросить: «Вызови hub_ping с message=hello». Текущая сессия Codex
-автоматически не получает новый сервер из файлов этого проекта.
+Then ask: "Call hub_ping with message=hello." An already running Codex session
+does not automatically load a server from this project's files.
 
-## Проверки
+## Verification
 
 ```sh
 cargo fmt --check
@@ -361,78 +390,97 @@ cargo clippy --all-targets -- -D warnings
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Интеграционные тесты поднимают HTTP-сервер на свободном локальном порту и проверяют
-health, обнаружение tools, JSON-ответ и отказ при неверном типе аргумента,
-регистрацию двух сессий, обновление без дублей, доступ к одному хранилищу из разных
-MCP-подключений, повторное подключение и отказ при неверной регистрации.
-Проверяются оба MCP lifecycle: `initialize` версии `2025-11-25` и `server/discover`
-версии `2026-07-28`.
-Тесты сообщений запускают настоящий бинарник Hub с отдельной временной базой:
-два аварийных перезапуска, сохранение регистрации/сообщений/ACK, коррелированный ответ,
-ошибки адресации и конфликтов ID, отказ ACK от другого получателя, страницы inbox,
-повтор неподтверждённых сообщений и одновременная отправка одного ID из двух MCP-подключений.
+Integration tests start a local HTTP server and cover health, tool discovery,
+JSON responses, invalid argument types, session registration/update without
+duplicates, shared storage across MCP connections, reconnect, and registration
+validation. Both MCP lifecycles are covered: initialize version 2025-11-25 and
+server/discover version 2026-07-28. Messaging tests start the real Hub binary with
+a temporary database and cover two crash/restarts, retained sessions/messages/ACK,
+correlated replies, addressing and ID conflicts, recipient validation for ACK,
+inbox pagination, redelivery of unacknowledged messages, and concurrent retries
+of one ID through two MCP connections.
 
-Первый этап проверен 11 октября 2026 года на Rust 1.97.1, axum 0.8.9, rmcp 3.5.1
-и Codex CLI 0.162.1: проверки Cargo, демо регистрации и прямой вызов `hub_ping`
-через Codex App Server прошли. Вызов через Codex проверяет MCP-интеграцию;
-выбор tool моделью здесь не проверяется. Полное демо четвёртого этапа ниже
-дополняет эту проверку реальными ходами.
+Milestone 1 was verified on 2026-10-11 with Rust 1.97.1, axum 0.8.9, rmcp 3.5.1,
+and Codex CLI 0.162.1: Cargo checks, registration demo, and direct hub_ping through
+App Server passed. That probe covers MCP integration, not model-selected calls.
+Milestone 4's full demo adds real turns.
 
-Второй этап проверен на той же среде с rusqlite 0.40.2: пять интеграционных тестов,
-`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `messaging_demo`
-и `check_codex.py --messaging` прошли. Демо проверило две остановки HTTP/MCP-сервера
-с повторным открытием базы; тесты проверили два аварийных завершения отдельного процесса.
-Две временные сессии Codex подтвердили send/read/ACK/reply через App Server без LLM turn.
+Milestone 2 was verified in the same environment with rusqlite 0.40.2: five
+integration tests, fmt/clippy, messaging_demo, and check_codex.py --messaging
+passed. The demo reopened the database after two HTTP/MCP restarts; tests
+performed two process crashes. Two temporary Codex sessions checked
+send/read/ACK/reply directly through App Server without inference.
 
-Третий этап проверен на той же среде: HTTP-результат и MCP inbox, терминальные статусы,
-nullable текст, ошибки runtime, ссылки на материалы, валидация и конфликты,
-одновременные повторы, два аварийных перезапуска и повтор после ACK прошли.
-Пять Python-проверок подтверждают выбор итогового текста и сохранение outbox при
-сбое/потере HTTP-ответа. Реальный lifecycle-probe зафиксировал `SessionStart`/`Stop`,
-включая продолжение одного хода от `4` к `5`; `turn_results_demo` доставило итог
-реального worker, проверило перезапуск Hub, повторы и ACK.
-Отдельный реальный ход проверил прерывание по timeout и сохранение `interrupted`
-с `final_text: null`; прежний `check_codex.py --messaging` также прошёл.
+Milestone 3 checked HTTP results and MCP inbox, terminal statuses, nullable text,
+runtime errors, artifact references, validation/conflicts, concurrent retries,
+two crash/restarts, and retry after ACK. Five Python checks covered final-text
+selection and outbox retention after failure/lost HTTP responses. The real
+lifecycle probe captured SessionStart/Stop, including continuation from 4 to 5
+within one turn. Turn_results_demo delivered a real worker result and checked
+restart, retries, and ACK. A timeout probe persisted interrupted with null text;
+the earlier direct messaging probe also passed.
 
-Четвёртый этап проверен на Codex CLI 0.162.1: девять Rust-интеграционных тестов,
-12 Python-тестов, `cargo fmt --check` и `cargo clippy --all-targets -- -D warnings`
-прошли. Реальная проверка ввода вернула 42 из контекста предыдущего хода.
-Полное демо подтвердило выбор MCP tool оркестратором, автоматические результаты
-worker и новые ходы того же оркестратора с ответами 41, 43 и 45, включая занятый
-ход, отключение клиента, возобновление thread и SSE после аварийного перезапуска Hub.
+Milestone 4 on Codex 0.162.1 passed nine Rust integration tests, 12 Python tests,
+fmt/clippy. A real input probe returned 42 from retained context. The full demo
+verified orchestrator-selected MCP, automatic worker results, and new turns in
+the same orchestrator with 41, 43, 45, including busy-turn waiting, disconnect,
+resume, and SSE after Hub crash/restart.
 
-Сценарий обычных CLI через хуки дополнительно проверен на той же версии:
-два интерактивных `codex` автоматически зарегистрировались, оркестратор отправил
-MCP-поручения, результаты worker продолжили исходный диалог с ответами 41, 43 и 45.
-Занятый ход сохранил результат без ACK; перезапуск Hub и переподключение обработчика
-сохранили оба CLI. Ввод пользователя в прежний терминал вернул 44.
-23 Python-проверки включают runtime queue/history recovery, повторы ACK и сохранение
-пользовательских hooks/config. События: [codex-cli-hooks.json](docs/evidence/codex-cli-hooks.json).
+Ordinary CLI hook integration was also verified: two interactive codex sessions
+registered, the orchestrator sent MCP assignments, and worker results continued
+the original conversation with 41, 43, 45. A busy turn retained a result without
+ACK. Hub restart and bridge reconnect preserved both CLIs. User input in the same
+terminal returned 44. Twenty-three Python checks included runtime queue/history
+recovery, ACK retries, and preserving user hooks/config.
+[Events](docs/evidence/codex-cli-hooks.json).
 
-## Границы прототипа
+The minimal local workflow was rechecked on 2026-10-12: 29 Python tests, nine Rust
+tests, fmt/clippy, and a real --smoke passed. Worker completed without MCP calls
+and its result continued the original orchestrator conversation.
+[Events](docs/evidence/codex-prototype.json).
 
-Сессии, сообщения и ACK сохраняются в локальной SQLite-базе. Регистрация не означает,
-что runtime сейчас подключён: срок жизни записи и автоматическое удаление пока не заданы.
-Результат хода сохраняется внешней интеграцией автоматически. Обычные CLI
-поддержаны через хуки и локальный shared daemon; пользователь сохраняет управление
-диалогом и его разрешения. Этот путь использует экспериментальный `thread/queue/*`
-Codex 0.162.1. `--no-daemon`, Windows, IDE и Codex App не проверены.
-Отдельный stdio-клиент владеет своим thread, использует `read-only` sandbox
-и отклоняет интерактивные approval/input-запросы.
-Доставка допускает повтор при аварии между принятием runtime и записью локального
-подтверждения: общей транзакции Hub и Codex нет. Hub не оценивает успешность задач.
-Прототип рассчитан на доверенные локальные интеграции одного пользователя: явные `sender_id`
-и `session_id` в инструментах не аутентифицируются по подключению. Сообщения пока не удаляются;
-отдельный инструмент просмотра подтверждённой истории не добавлен.
-MCP transport sessions не используются как идентификаторы агентных сессий.
-Для старых клиентов сохранена поддержка MCP transport sessions; современные
-клиенты работают без них. Поддержка SDK сама по себе не гарантирует автоматическое
-пробуждение LLM после уведомления.
+Leases were verified on 2026-10-13: **16 Rust**, **37 Python** tests, fmt/clippy,
+and three isolated runs with two real Codex CLIs each passed. Checks included
+explicit release, runtime release without model action, and TTL handoff while
+the old owner was active. [Contract, results, evidence](docs/codex-locks.md).
+Two additional runs with the earlier hints showed proactive lock selection
+without Skills or an explicit lease request: both agents acquired, waited,
+released through MCP, and preserved edits. After lease hints were removed from
+SessionStart and tools scoped to an observed conflict or explicit request, the
+same assignments produced **zero MCP calls** in both variants while preserving
+both edits. The suite now has **38 Python tests**. Leases remain an optional
+escalation. Self-triggered escalation after an actual edit conflict under this
+new policy has not been verified. [Details](docs/codex-locks.md).
 
-Источники:
+Historical evidence is preserved verbatim, including its original language.
+Current documentation, instructions, and executable example prompts are English.
+The English prompts were rechecked on 2026-10-14: routine edits made zero MCP
+calls and explicit lease coordination retained automatic runtime release.
+[English verification](docs/codex-locks.md).
 
-- [Официальный Rust SDK MCP](https://github.com/modelcontextprotocol/rust-sdk)
-- [Пример Streamable HTTP на axum](https://github.com/modelcontextprotocol/rust-sdk/blob/main/examples/servers/src/counter_streamhttp.rs)
-- [SQLite через rusqlite](https://docs.rs/rusqlite/0.40.2/rusqlite/)
-- [MCP в Codex](https://developers.openai.com/codex/mcp)
+## Prototype limits
+
+SQLite persists sessions, messages, and ACKs. Registration does not establish
+live presence; records have no TTL or automatic removal. External integration
+saves turn results automatically. Ordinary CLI support uses hooks and the local
+shared daemon, preserving user control and permissions. It uses experimental
+thread/queue APIs in Codex 0.162.1. No-daemon, Windows, IDE, and Codex App paths
+are unverified. The separate stdio client owns its thread, uses read-only
+sandbox, and rejects interactive approval/input requests.
+
+Delivery can repeat after a crash between runtime acceptance and a local receipt:
+Hub and Codex have no shared transaction. Hub does not assess task success.
+The prototype targets trusted local integrations of one user; sender_id and
+session_id are not authenticated against a connection. Messages are not deleted,
+and there is no dedicated tool to view acknowledged history. Agent session IDs
+are independent of MCP transport sessions. Legacy MCP clients retain transport
+session support; modern clients work without them. SDK support alone does not
+ensure automatic LLM wake-up after a notification.
+
+Sources:
+
+- [Official MCP Rust SDK](https://github.com/modelcontextprotocol/rust-sdk)
+- [Streamable HTTP example with axum](https://github.com/modelcontextprotocol/rust-sdk/blob/main/examples/servers/src/counter_streamhttp.rs)
+- [SQLite through rusqlite](https://docs.rs/rusqlite/0.40.2/rusqlite/)
+- [MCP in Codex](https://developers.openai.com/codex/mcp)
 - [Codex App Server](https://developers.openai.com/codex/app-server)

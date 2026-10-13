@@ -1,52 +1,59 @@
 # Agent Hub
 
-Общая терминология общения агентных сессий.
+Shared terminology for communication between agent sessions.
 
 ## Language
 
 **Hub**:
-Коммуникационный узел, в котором агентные сессии регистрируются, находят друг друга и обмениваются сообщениями.
+A communication service where agent sessions register, discover each other, and exchange messages.
 
-**Сессия агента**:
-Отдельный участник общения, представляющий диалог агента со своим контекстом.
+**Agent session**:
+A participant representing an agent conversation with its own context.
 _Avoid_: MCP transport session
 
-**Идентификатор сессии**:
-Стабильный адрес сессии агента в Hub. Сохраняет её идентичность при повторной регистрации и смене подключения.
+**Session ID**:
+A stable address for an agent session in Hub. Preserves its identity across registration updates and connection changes.
 
-**Внешний идентификатор runtime**:
-Идентификатор сессии агента в системе, которая её исполняет; например, идентификатор диалога Codex.
+**External runtime ID**:
+The session or conversation identifier in the system executing the agent, such as a Codex thread ID.
 
-**Оркестратор**:
-Агентная сессия, которая поручает работу другим сессиям и принимает решения на основании их ответов.
+**Orchestrator**:
+An agent session that delegates work to other sessions and makes decisions based on their responses.
 
 **Worker**:
-Агентная сессия, выполняющая работу, порученную оркестратором.
+An agent session performing work assigned by an orchestrator.
 
-**Ход (turn)**:
-Один цикл обработки входного сообщения агентной сессией.
-_Avoid_: задача
+**Turn**:
+One cycle of processing an input in an agent session.
+_Avoid_: task
 
-**Результат хода**:
-Данные завершившегося хода: статус завершения, доступный итоговый текст, ссылки на созданные материалы и сведения об ошибке.
-Успешность порученной задачи оценивает оркестратор на основании этих данных.
+**Turn result**:
+The terminal status, available final text, artifact references, and error details from a finished turn. The orchestrator uses these data to assess task success.
 
-**Статус завершения хода**:
-Зафиксированное runtime завершение обработки: обычное завершение, ошибка или прерывание.
-Обычное завершение не означает успешного выполнения задачи.
+**Terminal turn status**:
+Runtime-confirmed completion, failure, or interruption of a turn. Normal completion does not imply task success.
 
-**Задача**:
-Работа с ожидаемым результатом, порученная сессии. Её выполнение может потребовать нескольких ходов.
-_Avoid_: ход
+**Task**:
+Work with an expected outcome assigned to a session. Completing it may require several turns.
+_Avoid_: turn
 
-**Сообщение**:
-Адресованное одной сессии обращение от другой сессии с содержимым и собственным идентификатором.
+**Message**:
+An addressed communication from one session to another, with a payload and its own identifier.
 
-**Входящие (inbox)**:
-Сообщения, адресованные сессии, приём которых она ещё не подтвердила.
+**Inbox**:
+Messages addressed to a session whose acceptance it has not yet acknowledged.
 
-**Подтверждение приёма (ACK)**:
-Явное признание получателем, что сообщение принято. Не означает успешного выполнения порученной задачи.
+**Acknowledgement (ACK)**:
+The recipient's explicit confirmation that it accepted a message. Does not imply successful task execution.
 
-**Идентификатор корреляции**:
-Общая метка связанных сообщений, например запроса и ответа на него.
+**Correlation ID**:
+A shared identifier linking related messages, such as a request and its reply.
+
+**Resource**:
+A shared object whose access participants coordinate using one agreed key, such as a file in a particular checkout.
+
+**Lease (lock with TTL)**:
+A temporary exclusive right to modify a resource by agreement with other participants. Ends on release or expiry; does not itself prevent physical writes.
+
+**Lock request**:
+A distinct attempt to acquire a resource lease. Has its own identifier, may wait for a grant, and remains distinguishable from later requests by the same participant.

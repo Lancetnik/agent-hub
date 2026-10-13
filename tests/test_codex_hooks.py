@@ -42,6 +42,15 @@ class CliDeliveryTests(unittest.TestCase):
         self.journal.close()
         self.directory.cleanup()
 
+    def flush_results(self):
+        results = []
+        def accept(request, timeout):
+            results.append(json.loads(request.data))
+            return io.StringIO('{"message":{}}')
+        with patch("codex_worker.urlopen", side_effect=accept):
+            self.journal.flush()
+        return results
+
     def test_runtime_rejection_never_acknowledges_input(self):
         self.app.request.side_effect = RuntimeError("queue rejected")
         with self.assertRaises(RuntimeError):
@@ -113,6 +122,86 @@ class CliDeliveryTests(unittest.TestCase):
         self.bridge.finish({"threadId": "thread", "turn": {"id": "turn", "status": "completed"}})
         self.assertEqual(self.journal.db.execute("SELECT COUNT(*) FROM pending").fetchone()[0], 0)
 
+    def test_lock_notifications_do_not_generate_reply_turn_results(self):
+        incoming = message({"type": "lock_granted", "request_id": "lease", "session_id": "worker"})
+        self.journal.prepare(incoming)
+        self.journal.observe_input("turn", {"type": "userMessage", "content": [{"type": "text", "text": input_text(incoming)}]})
+        self.bridge.finish({"threadId": "thread", "turn": {"id": "turn", "status": "completed"}})
+        pending = self.journal.db.execute("SELECT url FROM pending").fetchall()
+        self.assertFalse(any(url.endswith("/turn-results") for (url,) in pending))
+
+    def lock_item(self, status="acquired"):
+        return {"type": "mcpToolCall", "id": "lock-item", "server": "agent_hub", "tool": "hub_acquire_lock",
+                "status": "completed", "arguments": {"request_id": "lease"}, "error": None,
+                "result": {"structuredContent": {"session_id": "worker", "request_id": "lease", "status": status}}}
+
+    def test_runtime_terminal_releases_observed_lock_without_an_incoming_task_or_mcp_release(self):
+        self.bridge.observe({"method": "item/completed", "params": {"threadId": "thread", "turnId": "turn", "item": self.lock_item()}})
+        terminal = {"method": "turn/completed", "params": {"threadId": "thread", "turn": {"id": "turn", "status": "interrupted"}}}
+        self.bridge.observe(terminal)
+        self.bridge.observe(terminal)
+        self.assertEqual(self.flush_results(), [{"session_id": "worker", "request_id": "lease"}])
+        self.bridge.observe(terminal)
+        self.assertEqual(self.flush_results(), [])
+
+    def test_waiting_ticket_survives_terminal_then_granted_turn_releases_it(self):
+        self.bridge.observe({"method": "item/completed", "params": {"threadId": "thread", "turnId": "wait", "item": self.lock_item("waiting")}})
+        self.bridge.finish({"threadId": "thread", "turn": {"id": "wait", "status": "completed"}})
+        self.assertEqual(self.flush_results(), [])
+        grant = message({"type": "lock_granted", "session_id": "worker", "request_id": "lease"})
+        self.journal.prepare(grant)
+        self.journal.observe_input("use", {"type": "userMessage", "content": [{"type": "text", "text": input_text(grant)}]})
+        self.bridge.finish({"threadId": "thread", "turn": {"id": "use", "status": "completed"}})
+        self.assertEqual(self.flush_results(), [{"session_id": "worker", "request_id": "lease"}])
+
+    def test_history_recovers_missed_lock_release_after_bridge_restart(self):
+        turn = {"id": "turn", "status": "completed", "items": [self.lock_item()]}
+        self.bridge.recover([turn], [])
+        self.journal.close()
+        self.journal = CliJournal(self.path)
+        self.bridge = CliBridge(self.app, self.hub, self.journal, Mock())
+        self.bridge.recover([turn], [])
+        self.assertEqual(self.flush_results(), [{"session_id": "worker", "request_id": "lease"}])
+        self.bridge.recover([turn], [])
+        self.assertEqual(self.flush_results(), [])
+
+    def test_expired_grant_is_acknowledged_without_starting_a_turn(self):
+        self.hub.lock_status.return_value = {"status": "expired"}
+        grant = message({"type": "lock_granted", "request_id": "lease", "session_id": "worker"})
+        self.assertFalse(self.bridge.deliver(grant))
+        self.app.request.assert_not_called()
+        self.hub.ack.assert_called_once_with("assignment")
+
+    def test_terminal_snapshot_before_queue_response_preserves_request_and_result(self):
+        def accept(method, params):
+            self.bridge.observe({"method": "turn/completed", "params": {
+                "threadId": "thread", "turn": {"id": "turn", "status": "completed", "items": [
+                    user_item(), {"id": "answer", "type": "agentMessage", "phase": "final_answer", "text": "4"}]}}})
+            return {"queuedSubmission": {"id": "queue", "clientUserMessageId": client_id("assignment")}}
+        self.app.request.side_effect = accept
+        self.bridge.deliver(message())
+        results = self.flush_results()
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual((result["final_text"], result["recipient_id"], result["correlation_id"]),
+                         ("4", "orchestrator", "task"))
+
+    def test_terminal_event_wakes_busy_cli_delivery_without_waiting_for_the_next_poll(self):
+        busy = True
+        def request(method, params):
+            if method == "thread/read":
+                return {"thread": {"status": {"type": "active" if busy else "idle"}}}
+            return {"queuedSubmission": {"id": "queue", "clientUserMessageId": client_id("assignment")}}
+        self.app.request.side_effect = request
+        self.hub.inbox.return_value = iter([message()])
+        with patch("codex_hooks.time.monotonic", return_value=100):
+            self.bridge.tick()
+            busy = False
+            self.bridge.observe({"method": "turn/completed", "params": {
+                "threadId": "thread", "turn": {"id": "busy", "status": "completed"}}})
+            self.bridge.tick()
+        self.hub.ack.assert_called_once_with("assignment")
+
     def test_observer_leaves_approval_request_to_cli(self):
         observer = AppServer.__new__(AppServer)
         observer.messages = queue.Queue()
@@ -170,6 +259,22 @@ class InstallationTests(unittest.TestCase):
             hook(settings)
         stop.assert_called_once_with(self.root / (session_id + ".pid"), settings)
         self.assertEqual(list(self.root.glob("*.sqlite3")), [])
+
+    def test_session_start_exposes_identity_and_messaging_without_advertising_file_leases(self):
+        settings = self.root / "settings.json"
+        settings.write_text(json.dumps({"state_dir": str(self.root), "url": "http://hub"}))
+        session_id = "00000000-0000-4000-8000-000000000001"
+        event = io.StringIO(json.dumps({"session_id": session_id, "hook_event_name": "SessionStart", "cwd": str(self.root)}))
+        output = io.StringIO()
+        with patch("codex_hooks.sys.stdin", event), patch("codex_hooks.sys.stdout", output), \
+                patch("codex_hooks.ensure_bridge"), patch.object(CliJournal, "flush"):
+            hook(settings)
+        context = json.loads(output.getvalue())["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(session_id, context)
+        self.assertIn("hub_send_message", context)
+        self.assertIn("final response", context)
+        self.assertNotIn("hub_acquire_lock", context)
+        self.assertNotIn("hub_release_lock", context)
 
 
 if __name__ == "__main__":

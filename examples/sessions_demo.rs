@@ -38,7 +38,7 @@ async fn demo() -> Result<(), Box<dyn Error>> {
     let orchestrator = json!({
         "session_id": orchestrator_id,
         "runtime_id": format!("external-{nonce}-orchestrator"),
-        "display_name": "Оркестратор",
+        "display_name": "Orchestrator",
     });
     let mut worker = json!({
         "session_id": worker_id,
@@ -90,7 +90,7 @@ async fn demo() -> Result<(), Box<dyn Error>> {
         println!("MCP lookup: {}", found["session"]);
     }
 
-    worker["display_name"] = json!("Worker (обновлён)");
+    worker["display_name"] = json!("Worker (updated)");
     let updated: Value = http
         .post(format!("{base}/sessions"))
         .json(&worker)

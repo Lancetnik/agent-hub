@@ -1,0 +1,1964 @@
+{
+  "version": "codex-cli 0.162.1",
+  "scenario": "expiry",
+  "evidence": {
+    "registered": {
+      "alpha": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+      "beta": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1"
+    },
+    "threads": {
+      "01a136ce-4bbb-7370-81e9-c9a0a31ceff1": {
+        "role": "beta",
+        "parent_thread_id": null,
+        "metadata_parent_thread_id": null,
+        "source": "vscode",
+        "turns": [
+          {
+            "id": "01a136ce-4c21-75f1-8ad3-e19006b851b0",
+            "rootTurnId": "01a136ce-4c21-75f1-8ad3-e19006b851b0",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136ce-52bd-7370-b3f6-a2706ad15cee",
+                "clientId": "1c89a9a1-af29-431b-ba16-f09449d81524",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Reply READY only. Do not use tools.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8ad79a808191babc1bceebe59c91",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920852,
+            "completedAt": 1791920855,
+            "durationMs": 3716
+          },
+          {
+            "id": "01a136ce-839a-7932-9325-78208cc0c8c2",
+            "rootTurnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136ce-83de-7623-b68d-fd26bba841f9",
+                "clientId": "11a8c674-14e5-4974-8bc5-0b718ad10d78",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Это проверка Agent Hub leases в общем checkout. Используй только hub_acquire_lock и hub_release_lock для координации, не отправляй сообщения и не проверяй inbox. Служебные скрипты, FIFO и ready-файлы не редактируй. Вызови hub_acquire_lock с аргументами {\"session_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\", \"request_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"ttl_seconds\": 60}. Если waiting, закончи текущий ход финалом WAITING_FOR_LOCK. Не спи и не делай polling; тебя продолжит lock_granted. После уведомления повтори тот же acquire для подтверждения acquired. Затем выполни python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py beta и дождись завершения. Под acquired перечитай текущий settings.json и установи max_retries=3, сохрани остальные поля. Проверь сохранённый файл. Освободи лок через hub_release_lock с session_id=01a136ce-4bbb-7370-81e9-c9a0a31ceff1 и request_id=01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test. Закончи финалом LOCK_B_DONE. Уведомления о локах не требуют сообщений другим участникам.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8ae3f0148191b5d1424ddda9f2d7",
+                "text": "Запрошу лок и выполню изменения после подтверждения acquired.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              },
+              {
+                "type": "mcpToolCall",
+                "id": "exec-b9d0ed9d-6d39-42bf-b003-a8d7e4d50ba9",
+                "server": "agent_hub",
+                "tool": "hub_acquire_lock",
+                "status": "completed",
+                "arguments": {
+                  "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                  "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                  "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                  "ttl_seconds": 60
+                },
+                "appContext": null,
+                "mcpAppUi": null,
+                "pluginId": null,
+                "readOnlyHint": false,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"expires_at_ms\":null,\"request_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\",\"status\":\"waiting\",\"ttl_seconds\":60}"
+                    }
+                  ],
+                  "structuredContent": {
+                    "expires_at_ms": null,
+                    "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                    "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                    "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                    "status": "waiting",
+                    "ttl_seconds": 60
+                  },
+                  "_meta": null
+                },
+                "error": null,
+                "durationMs": 3
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8aeab54081918d87a4cf824e9daa",
+                "text": "WAITING_FOR_LOCK",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920866,
+            "completedAt": 1791920874,
+            "durationMs": 8630
+          },
+          {
+            "id": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+            "rootTurnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136ce-ec85-7e41-92c6-92f4cc563850",
+                "clientId": "agent-hub:f12ab32a6c1a93166e249de30ce6c1a0ae37b07f5b27b9449d86e60c201373f3",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Incoming Agent Hub message:\n{\"acknowledged\": false, \"correlation_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\", \"message_id\": \"hub-lock:[\\\"lock_granted\\\",\\\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\\\"]\", \"payload\": {\"expires_at_ms\": 1791920953008, \"request_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"session_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\", \"ttl_seconds\": 60, \"type\": \"lock_granted\"}, \"recipient_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\", \"sender_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"sequence\": 2}",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8aff085081918d41a1c5a475bc81",
+                "text": "Подтвержу acquired, запущу beta и сохраню max_retries=3 с проверкой остальных полей.",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              },
+              {
+                "type": "mcpToolCall",
+                "id": "exec-fe56e3ef-3972-4f21-ba8e-dbfb4fd653cd",
+                "server": "agent_hub",
+                "tool": "hub_acquire_lock",
+                "status": "completed",
+                "arguments": {
+                  "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                  "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                  "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                  "ttl_seconds": 60
+                },
+                "appContext": null,
+                "mcpAppUi": null,
+                "pluginId": null,
+                "readOnlyHint": false,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"expires_at_ms\":1791920953008,\"request_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\",\"status\":\"acquired\",\"ttl_seconds\":60}"
+                    }
+                  ],
+                  "structuredContent": {
+                    "expires_at_ms": 1791920953008,
+                    "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                    "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                    "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                    "status": "acquired",
+                    "ttl_seconds": 60
+                  },
+                  "_meta": null
+                },
+                "error": null,
+                "durationMs": 2
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-ad531ea3-ad7e-4968-8cda-3d617c8db4bc",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc 'python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py beta'",
+                "cwd": "/tmp/hub-lease-tqa7wj97/project",
+                "processId": "52536",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py beta"
+                  }
+                ],
+                "aggregatedOutput": "WAITING:beta\nBARRIER_RELEASED\n",
+                "exitCode": 0,
+                "durationMs": 7912
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-64bdf077-de3e-4531-89eb-68debcc97418",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc \"python3 - <<'PY'\nimport json\nfrom pathlib import Path\np = Path('/private/tmp/hub-lease-tqa7wj97/project/settings.json')\nbefore = json.loads(p.read_text())\nprint('Current:', json.dumps(before, sort_keys=True))\nafter = dict(before)\nafter['max_retries'] = 3\np.write_text(json.dumps(after, indent=2) + '\\\\n')\nsaved = json.loads(p.read_text())\nassert saved == after\nassert {k:v for k,v in saved.items() if k \"'!= '\"'max_retries'} == {k:v for k,v in before.items() if k \"'!= '\"'max_retries'}\nprint('Verified:', json.dumps(saved, sort_keys=True))\nPY\"",
+                "cwd": "/tmp/hub-lease-tqa7wj97/project",
+                "processId": "33974",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\np = Path('/private/tmp/hub-lease-tqa7wj97/project/settings.json')\nbefore = json.loads(p.read_text())\nprint('Current:', json.dumps(before, sort_keys=True))\nafter = dict(before)\nafter['max_retries'] = 3\np.write_text(json.dumps(after, indent=2) + '\\n')\nsaved = json.loads(p.read_text())\nassert saved == after\nassert {k:v for k,v in saved.items() if k != 'max_retries'} == {k:v for k,v in before.items() if k != 'max_retries'}\nprint('Verified:', json.dumps(saved, sort_keys=True))\nPY"
+                  }
+                ],
+                "aggregatedOutput": "Current: {\"label\": \"fixture\", \"max_retries\": 1, \"timeout_ms\": 1000}\nVerified: {\"label\": \"fixture\", \"max_retries\": 3, \"timeout_ms\": 1000}\n",
+                "exitCode": 0,
+                "durationMs": 128
+              },
+              {
+                "type": "mcpToolCall",
+                "id": "exec-523d46a8-b4b4-475e-80ef-c3105d65c884",
+                "server": "agent_hub",
+                "tool": "hub_release_lock",
+                "status": "completed",
+                "arguments": {
+                  "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                  "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test"
+                },
+                "appContext": null,
+                "mcpAppUi": null,
+                "pluginId": null,
+                "readOnlyHint": false,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"expires_at_ms\":1791920953008,\"request_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\",\"status\":\"released\",\"ttl_seconds\":60}"
+                    }
+                  ],
+                  "structuredContent": {
+                    "expires_at_ms": 1791920953008,
+                    "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                    "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                    "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                    "status": "released",
+                    "ttl_seconds": 60
+                  },
+                  "_meta": null
+                },
+                "error": null,
+                "durationMs": 2
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8b17c284819196959e98b27be25d",
+                "text": "LOCK_B_DONE",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920893,
+            "completedAt": 1791920919,
+            "durationMs": 26818
+          }
+        ]
+      },
+      "01a136ce-42b2-76b2-b660-ca92ed807c87": {
+        "role": "alpha",
+        "parent_thread_id": null,
+        "metadata_parent_thread_id": null,
+        "source": "vscode",
+        "turns": [
+          {
+            "id": "01a136ce-42ef-7ca1-8f20-c019cdcbd6fc",
+            "rootTurnId": "01a136ce-42ef-7ca1-8f20-c019cdcbd6fc",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136ce-4a7f-7630-be70-92d031a5e7ed",
+                "clientId": "6321db9a-c941-4d68-a3cd-4e9fe9fe1e93",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Reply READY only. Do not use tools.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8ad5ef6c8191914d3d7cd59bff0d",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920849,
+            "completedAt": 1791920854,
+            "durationMs": 4413
+          },
+          {
+            "id": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+            "rootTurnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136ce-5af5-7ca3-90b9-7173a8b8bb15",
+                "clientId": "dc19b4a3-e7aa-4986-927b-08cc2b0086ad",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Это проверка Agent Hub leases в общем checkout. Используй только hub_acquire_lock и hub_release_lock для координации, не отправляй сообщения и не проверяй inbox. Служебные скрипты, FIFO и ready-файлы не редактируй. Сначала вызови hub_acquire_lock ровно с аргументами {\"session_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"request_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"ttl_seconds\": 30}. При acquired выполни команду python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py alpha и дождись её завершения. После команды повтори hub_acquire_lock с теми же аргументами {\"session_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"request_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"ttl_seconds\": 30}. Стенд специально дождётся истечения твоего TTL: ожидается expired. settings.json вообще не изменяй, не запрашивай новый лок. Вызови hub_release_lock с session_id=01a136ce-42b2-76b2-b660-ca92ed807c87 и request_id=01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test для проверки безопасного освобождения устаревшего токена. Закончи финалом EXPIRED_STOPPED. Если позднее придёт lock_expired, ответь EXPIRED_STOPPED без инструментов.",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8ada467c8191b450f050ec79b2c3",
+                "text": "Выполню проверку lease с указанными аргументами и остановлюсь после проверки истечения TTL.\n",
+                "phase": "commentary",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              },
+              {
+                "type": "mcpToolCall",
+                "id": "exec-17eae42c-fb16-407b-a12e-822ed7f70d35",
+                "server": "agent_hub",
+                "tool": "hub_acquire_lock",
+                "status": "completed",
+                "arguments": {
+                  "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                  "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                  "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                  "ttl_seconds": 30
+                },
+                "appContext": null,
+                "mcpAppUi": null,
+                "pluginId": null,
+                "readOnlyHint": false,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"expires_at_ms\":1791920893006,\"request_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87\",\"status\":\"acquired\",\"ttl_seconds\":30}"
+                    }
+                  ],
+                  "structuredContent": {
+                    "expires_at_ms": 1791920893006,
+                    "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                    "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                    "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                    "status": "acquired",
+                    "ttl_seconds": 30
+                  },
+                  "_meta": null
+                },
+                "error": null,
+                "durationMs": 2
+              },
+              {
+                "type": "commandExecution",
+                "id": "exec-b7c3e23e-fec5-4d1e-8e5f-2d4631eac61d",
+                "pluginId": null,
+                "scriptPath": null,
+                "command": "/bin/zsh -lc 'python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py alpha'",
+                "cwd": "/tmp/hub-lease-tqa7wj97/project",
+                "processId": "81364",
+                "source": "unifiedExecStartup",
+                "status": "completed",
+                "commandActions": [
+                  {
+                    "type": "unknown",
+                    "command": "python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py alpha"
+                  }
+                ],
+                "aggregatedOutput": "WAITING:alpha\nBARRIER_RELEASED\n",
+                "exitCode": 0,
+                "durationMs": 34432
+              },
+              {
+                "type": "mcpToolCall",
+                "id": "exec-ded56b10-3319-4c32-8ca5-842256a23b92",
+                "server": "agent_hub",
+                "tool": "hub_acquire_lock",
+                "status": "completed",
+                "arguments": {
+                  "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                  "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                  "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                  "ttl_seconds": 30
+                },
+                "appContext": null,
+                "mcpAppUi": null,
+                "pluginId": null,
+                "readOnlyHint": false,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"expires_at_ms\":1791920893006,\"request_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87\",\"status\":\"expired\",\"ttl_seconds\":30}"
+                    }
+                  ],
+                  "structuredContent": {
+                    "expires_at_ms": 1791920893006,
+                    "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                    "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                    "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                    "status": "expired",
+                    "ttl_seconds": 30
+                  },
+                  "_meta": null
+                },
+                "error": null,
+                "durationMs": 2
+              },
+              {
+                "type": "mcpToolCall",
+                "id": "exec-2de09cdd-bb59-4cd6-a8ce-4d61038069b6",
+                "server": "agent_hub",
+                "tool": "hub_release_lock",
+                "status": "completed",
+                "arguments": {
+                  "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                  "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test"
+                },
+                "appContext": null,
+                "mcpAppUi": null,
+                "pluginId": null,
+                "readOnlyHint": false,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"expires_at_ms\":1791920893006,\"request_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87\",\"status\":\"expired\",\"ttl_seconds\":30}"
+                    }
+                  ],
+                  "structuredContent": {
+                    "expires_at_ms": 1791920893006,
+                    "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                    "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                    "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                    "status": "expired",
+                    "ttl_seconds": 30
+                  },
+                  "_meta": null
+                },
+                "error": null,
+                "durationMs": 3
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8b0c1b048191aa6ae3a3c083efd0",
+                "text": "EXPIRED_STOPPED",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920855,
+            "completedAt": 1791920908,
+            "durationMs": 52451
+          },
+          {
+            "id": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+            "rootTurnId": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+            "items": [
+              {
+                "type": "userMessage",
+                "id": "01a136cf-27f5-7ac2-a527-bfe8d039d1eb",
+                "clientId": "agent-hub:fb0d2ceaf473dc07f73686f784e3b2020731642b9baa542b822f75e7511c8957",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Incoming Agent Hub message:\n{\"acknowledged\": false, \"correlation_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\", \"message_id\": \"hub-lock:[\\\"lock_expired\\\",\\\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\\\"]\", \"payload\": {\"expires_at_ms\": 1791920893006, \"request_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"session_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"ttl_seconds\": 30, \"type\": \"lock_expired\"}, \"recipient_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"sender_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"sequence\": 1}",
+                    "text_elements": []
+                  }
+                ]
+              },
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8b0ea91c8191af74add134330964",
+                "text": "EXPIRED_STOPPED",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "full",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920908,
+            "completedAt": 1791920910,
+            "durationMs": 2650
+          }
+        ]
+      }
+    },
+    "trace": [
+      {
+        "seconds": 10.916,
+        "method": "thread/started",
+        "params": {
+          "thread": {
+            "id": "01a136ce-52c7-77a0-8b80-96a061700d33",
+            "environments": [],
+            "extra": null,
+            "sessionId": "01a136ce-52c7-77a0-8b80-96a061700d33",
+            "forkedFromId": null,
+            "parentThreadId": null,
+            "preview": "",
+            "ephemeral": true,
+            "section": null,
+            "sectionEnteredAt": null,
+            "projectId": null,
+            "historyMode": "paginated",
+            "modelProvider": "openai",
+            "model": "gpt-5.6-luna",
+            "reasoningEffort": null,
+            "createdAt": 1791920853,
+            "updatedAt": 1791920853,
+            "recencyAt": 1791920853,
+            "status": {
+              "type": "idle"
+            },
+            "path": null,
+            "cwd": "/tmp/hub-lease-tqa7wj97/project",
+            "cliVersion": "0.162.1",
+            "originator": "codex-tui",
+            "source": "vscode",
+            "canAcceptDirectInput": true,
+            "threadSource": "thread_title",
+            "agentNickname": null,
+            "agentRole": null,
+            "gitInfo": null,
+            "name": null,
+            "daybreakEnabled": null,
+            "turns": []
+          }
+        }
+      },
+      {
+        "seconds": 11.098,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-42ef-7ca1-8f20-c019cdcbd6fc",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 12660,
+              "inputTokens": 12655,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12660,
+              "inputTokens": 12655,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 11.208,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn": {
+            "id": "01a136ce-42ef-7ca1-8f20-c019cdcbd6fc",
+            "rootTurnId": "01a136ce-42ef-7ca1-8f20-c019cdcbd6fc",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8ad5ef6c8191914d3d7cd59bff0d",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920849,
+            "completedAt": 1791920854,
+            "durationMs": 4413
+          }
+        }
+      },
+      {
+        "seconds": 12.765,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-4c21-75f1-8ad3-e19006b851b0",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 12663,
+              "inputTokens": 12658,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 12663,
+              "inputTokens": 12658,
+              "cachedInputTokens": 11136,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 5,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 12.865,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn": {
+            "id": "01a136ce-4c21-75f1-8ad3-e19006b851b0",
+            "rootTurnId": "01a136ce-4c21-75f1-8ad3-e19006b851b0",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8ad79a808191babc1bceebe59c91",
+                "text": "READY",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920852,
+            "completedAt": 1791920855,
+            "durationMs": 3716
+          }
+        }
+      },
+      {
+        "seconds": 12.869,
+        "prompt_role": "alpha",
+        "text": "Это проверка Agent Hub leases в общем checkout. Используй только hub_acquire_lock и hub_release_lock для координации, не отправляй сообщения и не проверяй inbox. Служебные скрипты, FIFO и ready-файлы не редактируй. Сначала вызови hub_acquire_lock ровно с аргументами {\"session_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"request_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"ttl_seconds\": 30}. При acquired выполни команду python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py alpha и дождись её завершения. После команды повтори hub_acquire_lock с теми же аргументами {\"session_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87\", \"request_id\": \"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"ttl_seconds\": 30}. Стенд специально дождётся истечения твоего TTL: ожидается expired. settings.json вообще не изменяй, не запрашивай новый лок. Вызови hub_release_lock с session_id=01a136ce-42b2-76b2-b660-ca92ed807c87 и request_id=01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test для проверки безопасного освобождения устаревшего токена. Закончи финалом EXPIRED_STOPPED. Если позднее придёт lock_expired, ответь EXPIRED_STOPPED без инструментов."
+      },
+      {
+        "seconds": 12.936,
+        "method": "turn/started",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn": {
+            "id": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+            "rootTurnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+            "items": [],
+            "itemsView": "notLoaded",
+            "status": "inProgress",
+            "error": null,
+            "startedAt": 1791920855,
+            "completedAt": null,
+            "durationMs": null
+          }
+        }
+      },
+      {
+        "seconds": 20.151,
+        "method": "item/completed",
+        "params": {
+          "item": {
+            "type": "mcpToolCall",
+            "id": "exec-17eae42c-fb16-407b-a12e-822ed7f70d35",
+            "server": "agent_hub",
+            "tool": "hub_acquire_lock",
+            "status": "completed",
+            "arguments": {
+              "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+              "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 30
+            },
+            "appContext": null,
+            "mcpAppUi": null,
+            "pluginId": null,
+            "readOnlyHint": false,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"expires_at_ms\":1791920893006,\"request_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87\",\"status\":\"acquired\",\"ttl_seconds\":30}"
+                }
+              ],
+              "structuredContent": {
+                "expires_at_ms": 1791920893006,
+                "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                "status": "acquired",
+                "ttl_seconds": 30
+              },
+              "_meta": null
+            },
+            "error": null,
+            "durationMs": 2
+          },
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "completedAtMs": 1791920863007
+        }
+      },
+      {
+        "seconds": 20.156,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 25897,
+              "inputTokens": 25733,
+              "cachedInputTokens": 23552,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 164,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13237,
+              "inputTokens": 13078,
+              "cachedInputTokens": 12416,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 159,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 23.343,
+        "prompt_role": "beta",
+        "text": "Это проверка Agent Hub leases в общем checkout. Используй только hub_acquire_lock и hub_release_lock для координации, не отправляй сообщения и не проверяй inbox. Служебные скрипты, FIFO и ready-файлы не редактируй. Вызови hub_acquire_lock с аргументами {\"session_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\", \"request_id\": \"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\", \"resource\": \"/private/tmp/hub-lease-tqa7wj97/project/settings.json\", \"ttl_seconds\": 60}. Если waiting, закончи текущий ход финалом WAITING_FOR_LOCK. Не спи и не делай polling; тебя продолжит lock_granted. После уведомления повтори тот же acquire для подтверждения acquired. Затем выполни python3 /tmp/hub-lease-tqa7wj97/project/collision_writer.py beta и дождись завершения. Под acquired перечитай текущий settings.json и установи max_retries=3, сохрани остальные поля. Проверь сохранённый файл. Освободи лок через hub_release_lock с session_id=01a136ce-4bbb-7370-81e9-c9a0a31ceff1 и request_id=01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test. Закончи финалом LOCK_B_DONE. Уведомления о локах не требуют сообщений другим участникам."
+      },
+      {
+        "seconds": 23.407,
+        "method": "turn/started",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn": {
+            "id": "01a136ce-839a-7932-9325-78208cc0c8c2",
+            "rootTurnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+            "items": [],
+            "itemsView": "notLoaded",
+            "status": "inProgress",
+            "error": null,
+            "startedAt": 1791920866,
+            "completedAt": null,
+            "durationMs": null
+          }
+        }
+      },
+      {
+        "seconds": 24.183,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 39401,
+              "inputTokens": 39192,
+              "cachedInputTokens": 36480,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 209,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13504,
+              "inputTokens": 13459,
+              "cachedInputTokens": 12928,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 45,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 26.117,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 27403,
+              "inputTokens": 27342,
+              "cachedInputTokens": 23552,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 61,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 14740,
+              "inputTokens": 14684,
+              "cachedInputTokens": 12416,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 56,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 29.704,
+        "method": "item/completed",
+        "params": {
+          "item": {
+            "type": "mcpToolCall",
+            "id": "exec-b9d0ed9d-6d39-42bf-b003-a8d7e4d50ba9",
+            "server": "agent_hub",
+            "tool": "hub_acquire_lock",
+            "status": "completed",
+            "arguments": {
+              "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+              "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 60
+            },
+            "appContext": null,
+            "mcpAppUi": null,
+            "pluginId": null,
+            "readOnlyHint": false,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"expires_at_ms\":null,\"request_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\",\"status\":\"waiting\",\"ttl_seconds\":60}"
+                }
+              ],
+              "structuredContent": {
+                "expires_at_ms": null,
+                "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                "status": "waiting",
+                "ttl_seconds": 60
+              },
+              "_meta": null
+            },
+            "error": null,
+            "durationMs": 3
+          },
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+          "completedAtMs": 1791920872560
+        }
+      },
+      {
+        "seconds": 29.727,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 43115,
+              "inputTokens": 42949,
+              "cachedInputTokens": 38016,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 166,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 15712,
+              "inputTokens": 15607,
+              "cachedInputTokens": 14464,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 105,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 31.356,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 53000,
+              "inputTokens": 52758,
+              "cachedInputTokens": 49792,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 242,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13599,
+              "inputTokens": 13566,
+              "cachedInputTokens": 13312,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 33,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 31.847,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 59059,
+              "inputTokens": 58885,
+              "cachedInputTokens": 53504,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 174,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 15944,
+              "inputTokens": 15936,
+              "cachedInputTokens": 15488,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 8,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 31.991,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn": {
+            "id": "01a136ce-839a-7932-9325-78208cc0c8c2",
+            "rootTurnId": "01a136ce-839a-7932-9325-78208cc0c8c2",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8aeab54081918d87a4cf824e9daa",
+                "text": "WAITING_FOR_LOCK",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920866,
+            "completedAt": 1791920874,
+            "durationMs": 8630
+          }
+        }
+      },
+      {
+        "seconds": 38.595,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 66689,
+              "inputTokens": 66414,
+              "cachedInputTokens": 56704,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 275,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13689,
+              "inputTokens": 13656,
+              "cachedInputTokens": 6912,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 33,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 46.369,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 80468,
+              "inputTokens": 80160,
+              "cachedInputTokens": 70144,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 308,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13779,
+              "inputTokens": 13746,
+              "cachedInputTokens": 13440,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 33,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 50.197,
+        "method": "turn/started",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn": {
+            "id": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+            "rootTurnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+            "items": [],
+            "itemsView": "notLoaded",
+            "status": "inProgress",
+            "error": null,
+            "startedAt": 1791920893,
+            "completedAt": null,
+            "durationMs": null
+          }
+        }
+      },
+      {
+        "seconds": 54.134,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 94337,
+              "inputTokens": 93996,
+              "cachedInputTokens": 83584,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 341,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13869,
+              "inputTokens": 13836,
+              "cachedInputTokens": 13440,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 33,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 54.704,
+        "method": "item/completed",
+        "params": {
+          "item": {
+            "type": "mcpToolCall",
+            "id": "exec-fe56e3ef-3972-4f21-ba8e-dbfb4fd653cd",
+            "server": "agent_hub",
+            "tool": "hub_acquire_lock",
+            "status": "completed",
+            "arguments": {
+              "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+              "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 60
+            },
+            "appContext": null,
+            "mcpAppUi": null,
+            "pluginId": null,
+            "readOnlyHint": false,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"expires_at_ms\":1791920953008,\"request_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\",\"status\":\"acquired\",\"ttl_seconds\":60}"
+                }
+              ],
+              "structuredContent": {
+                "expires_at_ms": 1791920953008,
+                "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                "status": "acquired",
+                "ttl_seconds": 60
+              },
+              "_meta": null
+            },
+            "error": null,
+            "durationMs": 2
+          },
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "completedAtMs": 1791920897560
+        }
+      },
+      {
+        "seconds": 54.76,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 75403,
+              "inputTokens": 75092,
+              "cachedInputTokens": 69248,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 311,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 16344,
+              "inputTokens": 16207,
+              "cachedInputTokens": 15744,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 137,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 57.613,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 108298,
+              "inputTokens": 107924,
+              "cachedInputTokens": 97280,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 374,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 13961,
+              "inputTokens": 13928,
+              "cachedInputTokens": 13696,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 33,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 58.482,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 92026,
+              "inputTokens": 91670,
+              "cachedInputTokens": 85248,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 356,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 16623,
+              "inputTokens": 16578,
+              "cachedInputTokens": 16000,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 45,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 60.845,
+        "method": "item/completed",
+        "params": {
+          "item": {
+            "type": "mcpToolCall",
+            "id": "exec-ded56b10-3319-4c32-8ca5-842256a23b92",
+            "server": "agent_hub",
+            "tool": "hub_acquire_lock",
+            "status": "completed",
+            "arguments": {
+              "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+              "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 30
+            },
+            "appContext": null,
+            "mcpAppUi": null,
+            "pluginId": null,
+            "readOnlyHint": false,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"expires_at_ms\":1791920893006,\"request_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87\",\"status\":\"expired\",\"ttl_seconds\":30}"
+                }
+              ],
+              "structuredContent": {
+                "expires_at_ms": 1791920893006,
+                "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                "status": "expired",
+                "ttl_seconds": 30
+              },
+              "_meta": null
+            },
+            "error": null,
+            "durationMs": 2
+          },
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "completedAtMs": 1791920903701
+        }
+      },
+      {
+        "seconds": 60.868,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 122415,
+              "inputTokens": 121946,
+              "cachedInputTokens": 110976,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 469,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 14117,
+              "inputTokens": 14022,
+              "cachedInputTokens": 13696,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 95,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 63.628,
+        "method": "item/completed",
+        "params": {
+          "item": {
+            "type": "mcpToolCall",
+            "id": "exec-2de09cdd-bb59-4cd6-a8ce-4d61038069b6",
+            "server": "agent_hub",
+            "tool": "hub_release_lock",
+            "status": "completed",
+            "arguments": {
+              "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+              "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test"
+            },
+            "appContext": null,
+            "mcpAppUi": null,
+            "pluginId": null,
+            "readOnlyHint": false,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"expires_at_ms\":1791920893006,\"request_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-42b2-76b2-b660-ca92ed807c87\",\"status\":\"expired\",\"ttl_seconds\":30}"
+                }
+              ],
+              "structuredContent": {
+                "expires_at_ms": 1791920893006,
+                "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+                "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+                "status": "expired",
+                "ttl_seconds": 30
+              },
+              "_meta": null
+            },
+            "error": null,
+            "durationMs": 3
+          },
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "completedAtMs": 1791920906483
+        }
+      },
+      {
+        "seconds": 63.658,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 136838,
+              "inputTokens": 136283,
+              "cachedInputTokens": 124800,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 555,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 14423,
+              "inputTokens": 14337,
+              "cachedInputTokens": 13824,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 86,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 65.255,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 151489,
+              "inputTokens": 150926,
+              "cachedInputTokens": 139008,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 563,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 14651,
+              "inputTokens": 14643,
+              "cachedInputTokens": 14208,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 8,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 65.381,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn": {
+            "id": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+            "rootTurnId": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8b0c1b048191aa6ae3a3c083efd0",
+                "text": "EXPIRED_STOPPED",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920855,
+            "completedAt": 1791920908,
+            "durationMs": 52451
+          }
+        }
+      },
+      {
+        "seconds": 65.392,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 108744,
+              "inputTokens": 108355,
+              "cachedInputTokens": 101632,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 389,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 16718,
+              "inputTokens": 16685,
+              "cachedInputTokens": 16384,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 33,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 65.414,
+        "method": "turn/started",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn": {
+            "id": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+            "rootTurnId": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+            "items": [],
+            "itemsView": "notLoaded",
+            "status": "inProgress",
+            "error": null,
+            "startedAt": 1791920908,
+            "completedAt": null,
+            "durationMs": null
+          }
+        }
+      },
+      {
+        "seconds": 67.962,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turnId": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 168063,
+              "inputTokens": 167492,
+              "cachedInputTokens": 153472,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 571,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 16574,
+              "inputTokens": 16566,
+              "cachedInputTokens": 14464,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 8,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 68.057,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn": {
+            "id": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+            "rootTurnId": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_03017e98f542b36c016ace8b0ea91c8191af74add134330964",
+                "text": "EXPIRED_STOPPED",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920908,
+            "completedAt": 1791920910,
+            "durationMs": 2650
+          }
+        }
+      },
+      {
+        "seconds": 72.305,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 125706,
+              "inputTokens": 125133,
+              "cachedInputTokens": 118144,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 573,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 16962,
+              "inputTokens": 16778,
+              "cachedInputTokens": 16512,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 184,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 75.086,
+        "method": "item/completed",
+        "params": {
+          "item": {
+            "type": "mcpToolCall",
+            "id": "exec-523d46a8-b4b4-475e-80ef-c3105d65c884",
+            "server": "agent_hub",
+            "tool": "hub_release_lock",
+            "status": "completed",
+            "arguments": {
+              "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+              "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test"
+            },
+            "appContext": null,
+            "mcpAppUi": null,
+            "pluginId": null,
+            "readOnlyHint": false,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"expires_at_ms\":1791920953008,\"request_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\",\"resource\":\"/private/tmp/hub-lease-tqa7wj97/project/settings.json\",\"session_id\":\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1\",\"status\":\"released\",\"ttl_seconds\":60}"
+                }
+              ],
+              "structuredContent": {
+                "expires_at_ms": 1791920953008,
+                "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+                "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+                "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+                "status": "released",
+                "ttl_seconds": 60
+              },
+              "_meta": null
+            },
+            "error": null,
+            "durationMs": 2
+          },
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "completedAtMs": 1791920917942
+        }
+      },
+      {
+        "seconds": 75.089,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 142859,
+              "inputTokens": 142204,
+              "cachedInputTokens": 134784,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 655,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 17153,
+              "inputTokens": 17071,
+              "cachedInputTokens": 16640,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 82,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 76.9,
+        "method": "thread/tokenUsage/updated",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "tokenUsage": {
+            "total": {
+              "totalTokens": 160251,
+              "inputTokens": 159589,
+              "cachedInputTokens": 151680,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 662,
+              "reasoningOutputTokens": 0
+            },
+            "last": {
+              "totalTokens": 17392,
+              "inputTokens": 17385,
+              "cachedInputTokens": 16896,
+              "cacheWriteInputTokens": 0,
+              "outputTokens": 7,
+              "reasoningOutputTokens": 0
+            },
+            "modelContextWindow": 475000
+          }
+        }
+      },
+      {
+        "seconds": 77.0,
+        "method": "turn/completed",
+        "params": {
+          "threadId": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn": {
+            "id": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+            "rootTurnId": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+            "items": [
+              {
+                "type": "agentMessage",
+                "id": "msg_0c751d16a8d29b85016ace8b17c284819196959e98b27be25d",
+                "text": "LOCK_B_DONE",
+                "phase": "final_answer",
+                "memoryCitation": null,
+                "delivery": null,
+                "questions": null
+              }
+            ],
+            "itemsView": "summary",
+            "status": "completed",
+            "error": null,
+            "startedAt": 1791920893,
+            "completedAt": 1791920919,
+            "durationMs": 26818
+          }
+        }
+      }
+    ],
+    "bridge_events": {
+      "alpha": [
+        {
+          "type": "bridge_connected",
+          "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "thread_id": "01a136ce-42b2-76b2-b660-ca92ed807c87"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn_id": "01a136ce-42ef-7ca1-8f20-c019cdcbd6fc",
+          "status": "completed",
+          "final_text": "READY"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn_id": "01a136ce-5ae5-79b1-81e5-c20038d7d6fd",
+          "status": "completed",
+          "final_text": "EXPIRED_STOPPED"
+        },
+        {
+          "type": "message_accepted",
+          "message_id": "hub-lock:[\"lock_expired\",\"01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test\"]",
+          "thread_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "queue_id": "01a136cf-27e0-7e32-b281-2ad3cbb181e5"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+          "turn_id": "01a136cf-27e1-7280-acf7-dca9e8b531c7",
+          "status": "completed",
+          "final_text": "EXPIRED_STOPPED"
+        }
+      ],
+      "beta": [
+        {
+          "type": "bridge_connected",
+          "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "thread_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn_id": "01a136ce-4c21-75f1-8ad3-e19006b851b0",
+          "status": "completed",
+          "final_text": "READY"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn_id": "01a136ce-839a-7932-9325-78208cc0c8c2",
+          "status": "completed",
+          "final_text": "WAITING_FOR_LOCK"
+        },
+        {
+          "type": "message_accepted",
+          "message_id": "hub-lock:[\"lock_granted\",\"01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test\"]",
+          "thread_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "queue_id": "01a136ce-ec65-7fc0-be82-2c60328f7c71"
+        },
+        {
+          "type": "turn_completed",
+          "thread_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+          "turn_id": "01a136ce-ec67-76b3-9c74-e6466315fa2b",
+          "status": "completed",
+          "final_text": "LOCK_B_DONE"
+        }
+      ]
+    },
+    "disabled_personal_skills": [
+      "docx",
+      "find-skills",
+      "google-workspace",
+      "import-memory",
+      "morning",
+      "pdf",
+      "pptx",
+      "skill-creator",
+      "xlsx"
+    ],
+    "extra_skill": false,
+    "processes": {
+      "hub": 5987,
+      "cli": {
+        "alpha": 6016,
+        "beta": 6367
+      }
+    },
+    "checkpoints": [
+      {
+        "name": "alpha_holds_lease_and_is_active",
+        "seconds": 23.342,
+        "settings": {
+          "timeout_ms": 1000,
+          "max_retries": 1,
+          "label": "fixture"
+        }
+      },
+      {
+        "name": "beta_waiting_turn_ended",
+        "seconds": 31.994,
+        "settings": {
+          "timeout_ms": 1000,
+          "max_retries": 1,
+          "label": "fixture"
+        }
+      },
+      {
+        "name": "ttl_handoff_while_old_owner_is_active",
+        "seconds": 57.605,
+        "settings": {
+          "timeout_ms": 1000,
+          "max_retries": 1,
+          "label": "fixture"
+        }
+      },
+      {
+        "name": "stale_release_keeps_beta_lease",
+        "seconds": 65.384,
+        "settings": {
+          "timeout_ms": 1000,
+          "max_retries": 1,
+          "label": "fixture"
+        }
+      },
+      {
+        "name": "settled",
+        "seconds": 77.009,
+        "settings": {
+          "timeout_ms": 1000,
+          "max_retries": 3,
+          "label": "fixture"
+        }
+      }
+    ],
+    "final_settings": {
+      "timeout_ms": 1000,
+      "max_retries": 3,
+      "label": "fixture"
+    },
+    "tickets": {
+      "alpha": {
+        "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+        "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+        "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+        "ttl_seconds": 30,
+        "status": "expired",
+        "expires_at_ms": 1791920893006
+      },
+      "beta": {
+        "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+        "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+        "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+        "ttl_seconds": 60,
+        "status": "released",
+        "expires_at_ms": 1791920953008
+      }
+    },
+    "summary": {
+      "mcp_calls": {
+        "beta": [
+          {
+            "tool": "hub_acquire_lock",
+            "arguments": {
+              "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+              "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 60
+            },
+            "status": "completed",
+            "error": null
+          },
+          {
+            "tool": "hub_acquire_lock",
+            "arguments": {
+              "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+              "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 60
+            },
+            "status": "completed",
+            "error": null
+          },
+          {
+            "tool": "hub_release_lock",
+            "arguments": {
+              "session_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1",
+              "request_id": "01a136ce-4bbb-7370-81e9-c9a0a31ceff1:lease-test"
+            },
+            "status": "completed",
+            "error": null
+          }
+        ],
+        "alpha": [
+          {
+            "tool": "hub_acquire_lock",
+            "arguments": {
+              "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+              "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 30
+            },
+            "status": "completed",
+            "error": null
+          },
+          {
+            "tool": "hub_acquire_lock",
+            "arguments": {
+              "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+              "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test",
+              "resource": "/private/tmp/hub-lease-tqa7wj97/project/settings.json",
+              "ttl_seconds": 30
+            },
+            "status": "completed",
+            "error": null
+          },
+          {
+            "tool": "hub_release_lock",
+            "arguments": {
+              "session_id": "01a136ce-42b2-76b2-b660-ca92ed807c87",
+              "request_id": "01a136ce-42b2-76b2-b660-ca92ed807c87:lease-test"
+            },
+            "status": "completed",
+            "error": null
+          }
+        ]
+      },
+      "automatic_result_inputs": {
+        "beta": 0,
+        "alpha": 0
+      },
+      "completion_to_recipient_turn_started": [],
+      "native_subagents": 0,
+      "runtime_turns": 6
+    },
+    "token_usage": {
+      "01a136ce-42b2-76b2-b660-ca92ed807c87": {
+        "total": {
+          "totalTokens": 168063,
+          "inputTokens": 167492,
+          "cachedInputTokens": 153472,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 571,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "totalTokens": 16574,
+          "inputTokens": 16566,
+          "cachedInputTokens": 14464,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 8,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 475000
+      },
+      "01a136ce-4bbb-7370-81e9-c9a0a31ceff1": {
+        "total": {
+          "totalTokens": 160251,
+          "inputTokens": 159589,
+          "cachedInputTokens": 151680,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 662,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "totalTokens": 17392,
+          "inputTokens": 17385,
+          "cachedInputTokens": 16896,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 7,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 475000
+      }
+    },
+    "notifications": {
+      "alpha": [
+        "lock_expired"
+      ],
+      "beta": [
+        "lock_granted"
+      ]
+    }
+  },
+  "status": "passed"
+}

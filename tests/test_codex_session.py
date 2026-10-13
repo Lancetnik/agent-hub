@@ -1,12 +1,13 @@
 """Runtime receipt boundaries and restart recovery, without inference."""
 
+import io
 import json
 import sys
 import tempfile
 import unittest
 from http.client import IncompleteRead
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from urllib.error import URLError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -36,6 +37,15 @@ class DeliveryTests(unittest.TestCase):
     def tearDown(self):
         self.journal.close()
         self.directory.cleanup()
+
+    def flush_results(self):
+        results = []
+        def accept(request, timeout):
+            results.append(json.loads(request.data))
+            return io.StringIO('{"message":{}}')
+        with patch("codex_worker.urlopen", side_effect=accept):
+            self.journal.flush()
+        return results
 
     def test_rejected_runtime_input_stays_pending_without_ack_or_receipt(self):
         self.app.request.side_effect = RuntimeError("runtime rejected input")
@@ -131,6 +141,57 @@ class DeliveryTests(unittest.TestCase):
     def test_state_file_cannot_be_reused_for_a_different_session(self):
         with self.assertRaises(ValueError):
             self.journal.bind("other", "thread")
+
+    def test_completion_before_runtime_response_returns_the_correlated_result(self):
+        def accept(method, params):
+            self.session.observe({"method": "turn/completed", "params": {
+                "threadId": "thread", "turn": {"id": "turn", "status": "completed", "items": [
+                    {"id": "answer", "type": "agentMessage", "phase": "final_answer", "text": "4"}]}}})
+            return {"turn": {"id": "turn"}}
+        self.app.request.side_effect = accept
+        self.session.deliver(message())
+        results = self.flush_results()
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual((result["final_text"], result["recipient_id"], result["correlation_id"]),
+                         ("4", "orchestrator", "assignment-1"))
+        self.assertIsNone(self.session.active_turn)
+
+    def test_result_input_does_not_start_an_automatic_reply_loop(self):
+        incoming = {**message(), "payload": {"type": "turn_completed", "final_text": "4"}}
+        self.session.deliver(incoming)
+        self.session.observe({"method": "turn/completed", "params": {
+            "threadId": "thread", "turn": {"id": "turn", "status": "completed", "items": []}}})
+        self.assertEqual(self.flush_results(), [])
+        self.assertIsNone(self.journal.unfinished("turn"))
+
+    def test_grant_completion_releases_lease_without_replying_to_previous_owner(self):
+        incoming = {**message(), "payload": {"type": "lock_granted", "request_id": "lease", "session_id": "worker"}}
+        self.hub.lock_status.return_value = {"status": "acquired"}
+        self.session.deliver(incoming)
+        terminal = {"method": "turn/completed", "params": {
+            "threadId": "thread", "turn": {"id": "turn", "status": "completed", "items": []}}}
+        self.session.observe(terminal)
+        self.session.observe(terminal)
+        self.assertEqual(self.flush_results(), [{"session_id": "worker", "request_id": "lease"}])
+        self.assertIsNone(self.journal.unfinished("turn"))
+
+    def test_stale_grant_never_starts_a_runtime_turn(self):
+        incoming = {**message(), "payload": {"type": "lock_granted", "request_id": "lease", "session_id": "worker"}}
+        self.hub.lock_status.return_value = {"status": "released"}
+        self.session.deliver(incoming)
+        self.app.request.assert_not_called()
+        self.hub.ack.assert_called_once_with("message-1")
+        self.assertIsNone(self.journal.receipt("message-1"))
+
+    def test_terminal_event_wakes_delivery_without_waiting_for_the_next_poll(self):
+        self.session.active_turn = "busy"
+        with patch("codex_session.time.monotonic", return_value=100):
+            self.session.tick()
+            self.session.observe({"method": "turn/completed", "params": {
+                "threadId": "thread", "turn": {"id": "busy", "status": "completed"}}})
+            self.session.tick()
+        self.hub.ack.assert_called_once_with("message-1")
 
 
 if __name__ == "__main__":

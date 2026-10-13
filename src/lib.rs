@@ -1,4 +1,5 @@
 mod delivery;
+mod locks;
 mod mcp;
 mod messaging;
 mod sessions;
@@ -23,6 +24,7 @@ pub fn router(
     database: impl AsRef<Path>,
 ) -> rusqlite::Result<Router> {
     let store = store::Store::open(database)?;
+    locks::supervise(store.clone(), cancellation.clone());
     let mcp_store = store.clone();
     let service = StreamableHttpService::new(
         move || Ok(mcp::AgentHub::new(mcp_store.clone())),
@@ -36,6 +38,9 @@ pub fn router(
         .route("/health", get(|| async { "ok" }))
         .route("/sessions", post(sessions::register))
         .route("/turn-results", post(turns::record))
+        .route("/locks/acquire", post(locks::acquire))
+        .route("/locks/release", post(locks::release))
+        .route("/locks/requests/{request_id}", get(locks::get))
         .route("/sessions/{session_id}/inbox", get(delivery::inbox))
         .route("/sessions/{session_id}/ack", post(delivery::ack))
         .route("/sessions/{session_id}/events", get(delivery::events))

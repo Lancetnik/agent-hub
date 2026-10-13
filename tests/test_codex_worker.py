@@ -57,6 +57,13 @@ class RuntimeMappingTests(unittest.TestCase):
         self.assertEqual(result["final_text"], "Saved report")
         self.assertEqual(result["artifact_refs"], ["/tmp/report.md"])
 
+    def test_terminal_snapshot_supplies_items_when_notifications_were_missed(self):
+        result = TurnCollector("thread").result({"threadId": "thread", "turn": {
+            "id": "turn", "status": "completed", "items": [
+                {"id": "answer", "type": "agentMessage", "phase": "final_answer", "text": "4"}],
+        }}, "worker", "orchestrator", "assignment")
+        self.assertEqual(result["final_text"], "4")
+
 
 class OutboxTests(unittest.TestCase):
     def test_offline_event_survives_restart_and_registration_precedes_result(self):

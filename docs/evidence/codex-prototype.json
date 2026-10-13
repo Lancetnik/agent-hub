@@ -1,0 +1,75 @@
+{
+  "version": "codex-cli 0.162.1",
+  "orchestrator_thread_id": "01a12f25-53de-7250-a056-40c987c674cd",
+  "worker_thread_id": "01a12f25-53de-7250-a056-40df94dd405f",
+  "worker_mcp_calls": 0,
+  "scenarios": [
+    "hook registration",
+    "automatic completion",
+    "same dialogue context",
+    "SessionEnd"
+  ],
+  "events": {
+    "worker": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a12f25-53de-7250-a056-40df94dd405f",
+        "thread_id": "01a12f25-53de-7250-a056-40df94dd405f"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12f25-53de-7250-a056-40df94dd405f",
+        "turn_id": "01a12f25-5426-7483-bf31-d0f78c62af70",
+        "status": "completed",
+        "final_text": "WORKER_READY"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "hooks-idle",
+        "thread_id": "01a12f25-53de-7250-a056-40df94dd405f",
+        "queue_id": "01a12f25-b52d-7902-9b3b-7641de96ce05"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12f25-53de-7250-a056-40df94dd405f",
+        "turn_id": "01a12f25-b52e-7581-9d04-e063c78c3b0e",
+        "status": "completed",
+        "final_text": "4"
+      }
+    ],
+    "orchestrator": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a12f25-53de-7250-a056-40c987c674cd",
+        "thread_id": "01a12f25-53de-7250-a056-40c987c674cd"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12f25-53de-7250-a056-40c987c674cd",
+        "turn_id": "01a12f25-5426-7483-bf31-d0e87a4ebc49",
+        "status": "completed",
+        "final_text": "READY"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12f25-53de-7250-a056-40c987c674cd",
+        "turn_id": "01a12f25-789d-7aa2-a292-1212ee8d6877",
+        "status": "completed",
+        "final_text": "WAITING"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"01a12f25-53de-7250-a056-40df94dd405f\",\"01a12f25-53de-7250-a056-40df94dd405f\",\"01a12f25-b52e-7581-9d04-e063c78c3b0e\"]",
+        "thread_id": "01a12f25-53de-7250-a056-40c987c674cd",
+        "queue_id": "01a12f25-c91a-78d1-a823-31f51d8edbc6"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a12f25-53de-7250-a056-40c987c674cd",
+        "turn_id": "01a12f25-c91a-78d1-a823-321536433928",
+        "status": "completed",
+        "final_text": "41"
+      }
+    ]
+  }
+}

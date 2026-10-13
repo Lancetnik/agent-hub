@@ -79,7 +79,7 @@ async fn demo() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;
     let database = directory.path().join("demo.sqlite3");
     let hub = Hub::start(&database).await?;
-    for (id, name) in [("orchestrator", "Оркестратор"), ("worker", "Worker")] {
+    for (id, name) in [("orchestrator", "Orchestrator"), ("worker", "Worker")] {
         reqwest::Client::new().post(format!("{}/sessions", hub.base))
             .json(&json!({"session_id": id, "runtime_id": format!("external-{id}"), "display_name": name}))
             .send().await?.error_for_status()?;
@@ -91,7 +91,7 @@ async fn demo() -> Result<(), Box<dyn Error>> {
     }
     let request = json!({
         "message_id": "request-1", "sender_id": "orchestrator", "recipient_id": "worker",
-        "payload": {"text": "Посчитай 2 + 2"}, "correlation_id": "task-1",
+        "payload": {"text": "Compute 2 + 2"}, "correlation_id": "task-1",
     });
     let sent = call(&orchestrator, "hub_send_message", request.clone()).await?;
     println!(

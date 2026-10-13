@@ -29,11 +29,11 @@ from codex_worker import initialize
 
 
 class Terminal:
-    def __init__(self, codex, environment, cwd, prompt):
+    def __init__(self, codex, environment, cwd, prompt, *, sandbox="read-only"):
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             os.execvpe(codex, [codex, "--no-alt-screen", "-C", str(cwd),
-                              "-s", "read-only", "-a", "never", prompt], environment)
+                              "-s", sandbox, "-a", "never", prompt], environment)
         fcntl.ioctl(self.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 140, 0, 0))
         self.tail = bytearray()
 
@@ -79,7 +79,7 @@ def stop_demo_daemon(home):
                 pass
 
 
-def demo(codex, output):
+def demo(codex, output, *, smoke=False):
     repo = Path(__file__).resolve().parents[1]
     subprocess.run(["cargo", "build", "--bin", "agent-hub"], cwd=repo, check=True)
     version = subprocess.check_output([codex, "--version"], text=True).strip()
@@ -185,6 +185,22 @@ def demo(codex, output):
             assert not list(HubClient(hub.url, orchestrator).inbox())
             print("PASS: a user prompt called MCP; worker result 4 woke the same idle CLI -> 41.", flush=True)
 
+            if smoke:
+                worker_turn = next(t for t in turns(worker) if any(i["type"] == "userMessage" and
+                                   "hooks-idle" in json.dumps(i) for i in t["items"]))
+                assert not any(i["type"] == "mcpToolCall" for i in worker_turn["items"])
+                for thread in [worker, orchestrator]:
+                    app.request("thread/archive", {"threadId": thread})
+                wait(lambda: not list(state.glob("*.pid")), timeout=20)
+                evidence = {"version": version, "orchestrator_thread_id": orchestrator,
+                            "worker_thread_id": worker, "worker_mcp_calls": 0,
+                            "scenarios": ["hook registration", "automatic completion", "same dialogue context", "SessionEnd"],
+                            "events": {role: events(thread) for role, thread in registered.items()}}
+                if output:
+                    Path(output).write_text(json.dumps(evidence, indent=2, ensure_ascii=False) + "\n")
+                print("PASS: local prototype smoke check; worker used no MCP tools and the original dialogue continued.", flush=True)
+                return
+
             gate = root / "release"
             command = "python3 -c " + shlex.quote("import pathlib,time; p=pathlib.Path(" + repr(str(gate))
                        + "); exec('while not p.exists(): time.sleep(0.1)'); print('released')")
@@ -242,9 +258,11 @@ def demo(codex, output):
             if app:
                 app.close()
             stop_demo_daemon(home)
-            for terminal in terminals:
-                terminal.close()
-            hub.stop()
+            try:
+                for terminal in terminals:
+                    terminal.close()
+            finally:
+                hub.stop()
     print("PASS: full ordinary CLI hook flow and isolated cleanup.", flush=True)
 
 
@@ -252,5 +270,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex", default="codex")
     parser.add_argument("--output")
+    parser.add_argument("--smoke", action="store_true", help="Only the core local flow: two CLIs, completion and existing context")
+    parser.add_argument("--max-seconds", type=int, default=480)
     args = parser.parse_args()
-    demo(args.codex, args.output)
+    if args.max_seconds <= 0:
+        parser.error("max-seconds must be positive")
+    def timeout(*_):
+        raise TimeoutError("CLI check exceeded its overall time budget")
+    signal.signal(signal.SIGALRM, timeout)
+    signal.alarm(args.max_seconds)
+    demo(args.codex, args.output, smoke=args.smoke)
