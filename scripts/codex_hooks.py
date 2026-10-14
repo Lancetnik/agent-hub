@@ -8,6 +8,7 @@ import json
 import os
 import shlex
 import signal
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -18,11 +19,12 @@ from http.client import HTTPException
 from pathlib import Path
 
 from codex_daemon import DaemonClient
+from codex_file_locks import denied, handle as file_lock_hook
 from codex_session import HubClient, InboxSignals
 from codex_worker import HUB_NOTIFICATIONS, LeaseJournal, TurnCollector, initialize
 
 MARKER = "Agent Hub ordinary CLI integration"
-EVENTS = ("SessionStart", "Stop", "SessionEnd")
+EVENTS = ("SessionStart", "Stop", "SessionEnd", "PreToolUse", "PostToolUse")
 HTTP_FAILURES = (OSError, HTTPException, json.JSONDecodeError)
 
 
@@ -255,8 +257,22 @@ def stop_bridge(pid_path, settings_path):
 
 
 def hook(settings_path):
-    settings = json.loads(Path(settings_path).read_text())
     event = json.load(sys.stdin)
+    if event["hook_event_name"] in {"PreToolUse", "PostToolUse"}:
+        journal = None
+        try:
+            settings = json.loads(Path(settings_path).read_text())
+            database, _, _, _ = session_paths(settings, event["session_id"])
+            journal = CliJournal(database)
+            output = file_lock_hook(settings, event, journal)
+        except (OSError, ValueError, TypeError, KeyError, sqlite3.DatabaseError) as error:
+            output = denied(error) if event["hook_event_name"] == "PreToolUse" else {}
+        finally:
+            if journal:
+                journal.close()
+        print(json.dumps(output))
+        return
+    settings = json.loads(Path(settings_path).read_text())
     session_id = event["session_id"]
     database, _, pid_path, _ = session_paths(settings, session_id)
     if event["hook_event_name"] == "SessionEnd":
@@ -384,6 +400,8 @@ def install(args):
              + json.dumps(url + "/mcp") + "\n# END " + MARKER + "\n")
     previous = json.loads(settings_path.read_text()) if settings_path.exists() else {}
     settings = {"url": url, "codex_home": str(root), "state_dir": str(state_dir),
+                "file_lock_wait_seconds": previous.get("file_lock_wait_seconds", 30),
+                "file_lock_ttl_seconds": previous.get("file_lock_ttl_seconds", 30),
                 "socket_path": args.socket, "config_block": previous.get("config_block", "")}
     if not existing_mcp:
         settings["config_block"] = block
@@ -391,11 +409,16 @@ def install(args):
     hooks_path = root / "hooks.json"
     document = json.loads(hooks_path.read_text()) if hooks_path.exists() else {}
     hooks = document.setdefault("hooks", {})
-    settings["added_events"] = previous.get("added_events", [name for name in EVENTS if name not in hooks])
+    settings["added_events"] = sorted(set(previous.get("added_events", [])) |
+                                      {name for name in EVENTS if name not in hooks})
     for name in EVENTS:
         entries = [entry for entry in hooks.get(name, []) if entry.get("description") != MARKER]
-        entries.append({"description": MARKER, "hooks": [{"type": "command", "command": command,
-                        "statusMessage": MARKER, "timeout": 3 if name == "SessionEnd" else 10}]})
+        entry = {"description": MARKER, "hooks": [{"type": "command", "command": command,
+                 "statusMessage": MARKER,
+                 "timeout": 75 if name == "PreToolUse" else (3 if name == "SessionEnd" else 10)}]}
+        if name in {"PreToolUse", "PostToolUse"}:
+            entry["matcher"] = "^apply_patch$"
+        entries.append(entry)
         hooks[name] = entries
     # All validation precedes mutations. Existing hook entries and config remain intact.
     settings_path.write_text(json.dumps(settings, indent=2) + "\n")

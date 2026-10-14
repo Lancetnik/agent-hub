@@ -18,7 +18,8 @@ codex
 ```
 
 In Codex, open `/hooks` and trust the **Agent Hub ordinary CLI integration**
-commands for `SessionStart`, `Stop`, and `SessionEnd`. Then start a new `codex`
+commands for `SessionStart`, `Stop`, `SessionEnd`, `PreToolUse`, and `PostToolUse`.
+The last two match only `apply_patch`. Then start a new `codex`
 or resume a conversation with `codex resume`. Hook trust remains under user
 control; the installer neither trusts other hooks nor bypasses review.
 
@@ -49,11 +50,13 @@ a second reply. This workflow does not require a separate Skill. Verification
 with clean CLIs and native subagents is described in
 [codex-coordination.md](codex-coordination.md).
 
-For routine local edits, the hook directs agents to local tools. Lease
-instructions live in the relevant MCP tool description and optional Skill;
-standard `SessionStart` does not suggest acquisition before every edit. A lease
-is an escalation for an observed conflict or an explicit request to serialize
-a resource.
+For routine local edits, agents use local tools. `PreToolUse` automatically
+acquires short file leases around `apply_patch`; `PostToolUse` releases them.
+After contention, the hook waits, rejects the stale patch, and instructs the
+model to reread before retrying. No Skill or model-side acquire/release call is
+required. [Automatic file leases](codex-file-locks.md) describes coverage,
+deadlines, and a real two-CLI verification. Explicit MCP leases remain an
+escalation for an observed conflict or a request to serialize a broader resource.
 
 ## Acceptance and results
 

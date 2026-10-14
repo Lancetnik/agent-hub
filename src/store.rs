@@ -43,6 +43,7 @@ pub(crate) struct Store {
     connection: Arc<Mutex<Connection>>,
     pub(crate) changes: broadcast::Sender<String>,
     pub(crate) lock_changed: Arc<Notify>,
+    pub(crate) lock_updates: broadcast::Sender<()>,
     pub(crate) clock: Arc<dyn Fn() -> i64 + Send + Sync>,
 }
 
@@ -91,10 +92,28 @@ impl Store {
              CREATE INDEX IF NOT EXISTS lock_queue ON lock_requests(resource, sequence) WHERE status='waiting';
              COMMIT;",
         )?;
+        // Existing databases retain the original MCP notification behavior.
+        let has_notify: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('lock_requests') WHERE name='notify')",
+            [],
+            |row| row.get(0),
+        )?;
+        if !has_notify {
+            connection.execute_batch("ALTER TABLE lock_requests ADD COLUMN notify INTEGER NOT NULL DEFAULT 1 CHECK(notify IN (0,1));")?;
+        }
+        let has_wait_deadline: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('lock_requests') WHERE name='wait_deadline_ms')",
+            [], |row| row.get(0),
+        )?;
+        if !has_wait_deadline {
+            connection
+                .execute_batch("ALTER TABLE lock_requests ADD COLUMN wait_deadline_ms INTEGER;")?;
+        }
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
             changes: broadcast::channel(256).0,
             lock_changed: Arc::new(Notify::new()),
+            lock_updates: broadcast::channel(256).0,
             clock,
         })
     }

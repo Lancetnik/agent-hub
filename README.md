@@ -18,6 +18,13 @@ in clean CLI sessions. `SessionStart` explains how to finish a turn to receive
 automatic responses; this workflow requires no separate Skill.
 [Scenarios and verification results](docs/codex-coordination.md).
 
+Installed CLI hooks also [automatically lease files for `apply_patch`](docs/codex-file-locks.md).
+A free file is locked until the edit finishes. On contention, the hook waits
+for release, then rejects the original patch so the agent rereads current
+contents and prepares a new patch. Default wait and TTL are 30 seconds. This
+uses HTTP inside hooks, with no model MCP calls or extra conversation turns.
+Arbitrary shell writes are outside this interception.
+
 [Negotiation between two sessions after losing a shared-file edit](docs/codex-file-conflicts.md)
 was also verified. For an observed edit conflict or an explicit agreement to
 serialize a resource, [MCP leases with TTL and FIFO](docs/codex-locks.md) are
@@ -25,8 +32,9 @@ available: the waiting agent finishes its turn and automatically continues on
 `lock_granted`. Default TTL is 120 seconds, range 1–600; the bridge releases
 observed grants at turn completion. Coordination is cooperative; Hub cannot
 prevent physical file writes after expiry. Routine local edits use local tools.
-Checking Hub or acquiring a lock before every write is unnecessary; a peer
-registration alone does not establish a conflict.
+Models need not check Hub or acquire MCP locks before routine edits; the
+`apply_patch` hooks handle their leases. A peer registration alone does not
+establish a need for model-side coordination.
 
 ## Running Hub
 
@@ -45,7 +53,7 @@ The default listener is `127.0.0.1:7331`:
 - `GET /sessions/{session_id}/inbox?limit=100&cursor=...` — inbox for external adapters.
 - `POST /sessions/{session_id}/ack` with `{"message_id":"..."}` — adapter ACK.
 - `POST /locks/acquire`, `POST /locks/release` — acquire and release a lease.
-- `GET /locks/requests/{request_id}?session_id=...` — inspect an owned request.
+- `GET /locks/requests/{request_id}?session_id=...&wait_seconds=30` — inspect or wait for an owned request (0–60 seconds).
 - `/mcp` — MCP over Streamable HTTP.
 - `hub_ping({"message":"hello"})` — connectivity check.
 - `hub_list_sessions({})` — registered sessions.

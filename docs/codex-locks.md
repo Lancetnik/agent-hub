@@ -1,9 +1,11 @@
 # Resource leases with bounded lifetime
 
-Leases are an optional escalation for an observed overlapping-edit conflict
+Model-requested MCP leases are an optional escalation for an observed overlapping-edit conflict
 with another agent, or an explicit request to serialize a particular resource.
 Routine edits use local tools; another registered session does not require
-checking or acquiring a lease.
+checking or acquiring a lease through MCP. Installed CLI hooks now acquire
+[automatic file leases](codex-file-locks.md) for `apply_patch` independently of
+the model; the inter-turn MCP workflow below remains available.
 
 For this coordination, Hub maintains one owner and a FIFO queue **per resource**.
 A waiting Codex finishes its turn; Hub grants the lease and resumes the same
@@ -23,7 +25,7 @@ hub_acquire_lock({
 
 The response includes those fields, status, and expires_at_ms (Unix milliseconds).
 Default TTL is **120 seconds**, range **1–600 seconds**. It starts on grant;
-time in queue does not consume TTL. A waiting request has no expiry yet.
+time in queue does not consume TTL. A notifying MCP waiter has no queue deadline.
 
 | Status | Meaning |
 | --- | --- |
@@ -37,7 +39,8 @@ Request_id is globally unique: use session_id and a fresh suffix for every new
 critical section. Replaying **identical arguments** returns current status,
 **never renews TTL**, and never requeues a terminal request. Changed arguments
 with the same ID fail. One session cannot create two acquired/waiting requests
-for the same resource.
+for the same resource through the notifying MCP workflow. Silent hook requests
+can queue distinct tool calls from the same session.
 
 After acquired or lock_granted, confirm current status by replaying acquire,
 reread the latest file, preserve compatible changes, and finish writes before
@@ -90,6 +93,13 @@ HTTP equivalents are available for diagnostics:
 - `POST /locks/acquire`: the same arguments as the acquire tool.
 - `POST /locks/release`: the same arguments as the release tool.
 - `GET /locks/requests/{request_id}?session_id=...`: inspect an owned request.
+
+Hooks use `notify=false` on acquire and `wait_seconds` (0–60) on inspection.
+These requests share resource FIFO but do not create `lock_granted` or
+`lock_expired` conversation messages. A silent waiter is cancelled after 60
+seconds if abandoned. An automatic edit can borrow its session's existing
+notifying acquired lease; it returns that original ticket and does not release
+it in `PostToolUse`. This avoids waiting on the model's own explicit lease.
 
 State shows whether a particular request is acquired and its deadline. Unrelated
 resources can continue independently.
@@ -245,7 +255,8 @@ python3 -m unittest discover -s tests -p 'test_*.py'
   --max-seconds 240 --output /tmp/hub-lock-on-demand-peer-aware.json
 ```
 
-This revision passed **16 Rust** and **38 Python** tests, fmt/clippy. Server
+Before automatic file hooks were added, this revision passed **16 Rust** and
+**38 Python** tests, fmt/clippy. Server
 implementation: [locks.rs](../src/locks.rs), schema in [store.rs](../src/store.rs),
 routes in [lib.rs](../src/lib.rs), tools in [mcp.rs](../src/mcp.rs). Lease-to-turn
 binding and durable release are in LeaseJournal in
@@ -299,4 +310,5 @@ Lease instructions live in their MCP tool descriptions; the
 [optional Skill](../skills/agent-hub-coordination/SKILL.md) covers escalation after
 a conflict or explicit request. Standard SessionStart does not advertise leases
 before file edits. Tool availability does not guarantee model selection; Hub
-does not automatically detect overlapping file edits.
+does not infer semantic edit conflicts. Automatic structured-edit interception
+is a separate mechanism described in [codex-file-locks.md](codex-file-locks.md).

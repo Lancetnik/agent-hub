@@ -2,7 +2,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
 };
@@ -24,6 +24,13 @@ pub(crate) struct AcquireLock {
     pub resource: String,
     /// Lease starts on grant, not while waiting. 1..600 seconds; default 120.
     pub ttl_seconds: Option<u32>,
+    /// Keep true for MCP wakeups. Tool hooks wait over HTTP with notify=false.
+    #[serde(default = "notifications_enabled")]
+    pub notify: bool,
+}
+
+fn notifications_enabled() -> bool {
+    true
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -52,6 +59,7 @@ pub(crate) struct LockTicket {
     pub ttl_seconds: u32,
     pub status: LockStatus,
     pub expires_at_ms: Option<i64>,
+    pub notify: bool,
 }
 
 pub(crate) fn now_ms() -> i64 {
@@ -77,11 +85,12 @@ fn row_ticket(row: &rusqlite::Row<'_>) -> rusqlite::Result<LockTicket> {
             _ => unreachable!("SQL status constraint"),
         },
         expires_at_ms: row.get(5)?,
+        notify: row.get(6)?,
     })
 }
 
 fn lookup(db: &Connection, id: &str) -> rusqlite::Result<Option<LockTicket>> {
-    db.query_row("SELECT request_id,session_id,resource,ttl_seconds,status,expires_at_ms FROM lock_requests WHERE request_id=?1",
+    db.query_row("SELECT request_id,session_id,resource,ttl_seconds,status,expires_at_ms,notify FROM lock_requests WHERE request_id=?1",
                  [id], row_ticket).optional()
 }
 
@@ -92,6 +101,9 @@ fn event(
     kind: &str,
     recipients: &mut Vec<String>,
 ) -> Result<(), StoreError> {
+    if !ticket.notify {
+        return Ok(());
+    }
     let body = json!({"type":kind,"request_id":ticket.request_id,"session_id":ticket.session_id,
                       "resource":ticket.resource,"ttl_seconds":ticket.ttl_seconds,"expires_at_ms":ticket.expires_at_ms});
     let message_id = format!("hub-lock:{}", json!([kind, ticket.request_id]));
@@ -111,7 +123,7 @@ fn grant_next(
     let next = db.query_row("SELECT request_id FROM lock_requests WHERE resource=?1 AND status='waiting' ORDER BY sequence LIMIT 1",
                             [resource], |row| row.get::<_,String>(0)).optional()?;
     if let Some(id) = next {
-        db.execute("UPDATE lock_requests SET status='acquired',expires_at_ms=?2+ttl_seconds*1000 WHERE request_id=?1", params![id,now])?;
+        db.execute("UPDATE lock_requests SET status='acquired',expires_at_ms=?2+ttl_seconds*1000,wait_deadline_ms=NULL WHERE request_id=?1", params![id,now])?;
         event(
             db,
             sender,
@@ -123,13 +135,16 @@ fn grant_next(
     Ok(())
 }
 
-fn expire(db: &Connection, now: i64, recipients: &mut Vec<String>) -> Result<(), StoreError> {
+fn expire(db: &Connection, now: i64, recipients: &mut Vec<String>) -> Result<bool, StoreError> {
+    // A killed command hook cannot leave a silent request waiting forever.
+    let cancelled = db.execute("UPDATE lock_requests SET status='cancelled' WHERE status='waiting' AND wait_deadline_ms<=?1", [now])?;
     let due = {
         let mut query = db.prepare("SELECT request_id FROM lock_requests WHERE status='acquired' AND expires_at_ms<=?1 ORDER BY sequence")?;
         query
             .query_map([now], |row| row.get::<_, String>(0))?
             .collect::<rusqlite::Result<Vec<_>>>()?
     };
+    let changed = cancelled > 0 || !due.is_empty();
     for id in due {
         db.execute(
             "UPDATE lock_requests SET status='expired' WHERE request_id=?1",
@@ -139,7 +154,7 @@ fn expire(db: &Connection, now: i64, recipients: &mut Vec<String>) -> Result<(),
         event(db, &ticket.session_id, &ticket, "lock_expired", recipients)?;
         grant_next(db, &ticket.resource, &ticket.session_id, now, recipients)?;
     }
-    Ok(())
+    Ok(changed)
 }
 
 impl Store {
@@ -148,6 +163,7 @@ impl Store {
             let _ = self.changes.send(id);
         }
         self.lock_changed.notify_one();
+        let _ = self.lock_updates.send(());
     }
 
     pub(crate) async fn acquire_lock(
@@ -163,17 +179,27 @@ impl Store {
             registered(&tx,"session_id",&request.session_id)?;
             let now = clock(); let mut recipients = Vec::new(); expire(&tx,now,&mut recipients)?;
             if let Some(ticket) = lookup(&tx,&request.request_id)? {
-                if ticket.session_id != request.session_id || ticket.resource != request.resource || ticket.ttl_seconds != ttl {
+                if ticket.session_id != request.session_id || ticket.resource != request.resource || ticket.ttl_seconds != ttl || ticket.notify != request.notify {
                     return Err(StoreError::Invalid("request_id already exists with different arguments".into()));
                 }
                 tx.commit()?; return Ok((ticket,recipients));
             }
+            if !request.notify {
+                // An explicit MCP lease already protects this session's edits.
+                // Return its ticket so the hook can borrow it without releasing it.
+                let manual = tx.query_row("SELECT request_id FROM lock_requests WHERE resource=?1 AND session_id=?2 AND status='acquired' AND notify=1",
+                    params![request.resource,request.session_id], |row| row.get::<_,String>(0)).optional()?;
+                if let Some(id) = manual {
+                    let ticket = lookup(&tx,&id)?.unwrap();
+                    tx.commit()?; return Ok((ticket,recipients));
+                }
+            }
             let duplicate: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM lock_requests WHERE resource=?1 AND session_id=?2 AND status IN ('waiting','acquired'))",
                 params![request.resource,request.session_id], |row| row.get(0))?;
-            if duplicate { return Err(StoreError::Invalid("Session already holds or waits for this resource; reuse its request_id".into())); }
+            if duplicate && request.notify { return Err(StoreError::Invalid("Session already holds or waits for this resource; reuse its request_id".into())); }
             let busy: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM lock_requests WHERE resource=?1 AND status='acquired')", [&request.resource], |row| row.get(0))?;
-            tx.execute("INSERT INTO lock_requests(request_id,session_id,resource,ttl_seconds,status,expires_at_ms) VALUES(?1,?2,?3,?4,?5,?6)",
-                params![request.request_id,request.session_id,request.resource,ttl,if busy {"waiting"} else {"acquired"},if busy {None} else {Some(now+i64::from(ttl)*1000)}])?;
+            tx.execute("INSERT INTO lock_requests(request_id,session_id,resource,ttl_seconds,status,expires_at_ms,notify,wait_deadline_ms) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+                params![request.request_id,request.session_id,request.resource,ttl,if busy {"waiting"} else {"acquired"},if busy {None} else {Some(now+i64::from(ttl)*1000)},request.notify,if busy && !request.notify {Some(now+60_000)} else {None}])?;
             let ticket = lookup(&tx,&request.request_id)?.unwrap(); tx.commit()?; Ok((ticket,recipients))
         }).await?;
         self.signal_locks(recipients);
@@ -252,23 +278,28 @@ impl Store {
 
     pub(crate) async fn expire_locks(&self) -> Result<(), StoreError> {
         let clock = self.clock.clone();
-        let recipients = self
+        let (recipients, changed) = self
             .interact(move |db| {
                 let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
                 let mut recipients = Vec::new();
-                expire(&tx, clock(), &mut recipients)?;
+                let changed = expire(&tx, clock(), &mut recipients)?;
                 tx.commit()?;
-                Ok(recipients)
+                Ok((recipients, changed))
             })
             .await?;
-        self.signal_locks(recipients);
+        if changed {
+            self.signal_locks(recipients);
+        }
         Ok(())
     }
 
     async fn lock_deadline(&self) -> Result<Option<i64>, StoreError> {
         self.interact(|db| {
             Ok(db.query_row(
-                "SELECT MIN(expires_at_ms) FROM lock_requests WHERE status='acquired'",
+                "SELECT MIN(deadline) FROM (
+                    SELECT expires_at_ms AS deadline FROM lock_requests WHERE status='acquired'
+                    UNION ALL SELECT wait_deadline_ms FROM lock_requests WHERE status='waiting'
+                 )",
                 [],
                 |row| row.get(0),
             )?)
@@ -341,17 +372,37 @@ pub(crate) async fn release(
 #[serde(deny_unknown_fields)]
 pub(crate) struct OwnerQuery {
     session_id: String,
+    #[serde(default)]
+    wait_seconds: u32,
 }
 pub(crate) async fn get(
     State(store): State<Store>,
+    Extension(cancellation): Extension<CancellationToken>,
     Path(request_id): Path<String>,
     Query(owner): Query<OwnerQuery>,
 ) -> Result<Json<LockTicket>, (StatusCode, Json<Value>)> {
-    store
-        .lock_ticket(owner.session_id, request_id)
-        .await
-        .map(Json)
-        .map_err(http_error)
+    if owner.wait_seconds > 60 {
+        return Err(http_error(StoreError::Invalid(
+            "wait_seconds must be between 0 and 60".into(),
+        )));
+    }
+    // Subscribe before the authoritative read so a concurrent release cannot be missed.
+    let mut updates = store.lock_updates.subscribe();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(u64::from(owner.wait_seconds));
+    loop {
+        let ticket = store
+            .lock_ticket(owner.session_id.clone(), request_id.clone())
+            .await
+            .map_err(http_error)?;
+        if ticket.status != LockStatus::Waiting || tokio::time::Instant::now() >= deadline {
+            return Ok(Json(ticket));
+        }
+        tokio::select! {
+            _ = cancellation.cancelled() => return Err((StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"Hub is stopping"})))),
+            _ = tokio::time::sleep_until(deadline) => {},
+            _ = updates.recv() => {}, // A lagged hint also reconciles against SQLite.
+        }
+    }
 }
 
 #[cfg(test)]
@@ -384,6 +435,7 @@ mod tests {
             request_id: id.into(),
             resource: "file".into(),
             ttl_seconds: Some(ttl),
+            notify: true,
         }
     }
     async fn inbox(store: &Store, id: &str) -> Vec<crate::messaging::Message> {
@@ -396,6 +448,51 @@ mod tests {
             .await
             .unwrap()
             .messages
+    }
+
+    #[tokio::test]
+    async fn automatic_edit_can_use_its_sessions_existing_manual_lease() {
+        let store = setup(":memory:", Arc::new(AtomicI64::new(1000))).await;
+        store.acquire_lock(acquire("a", 120)).await.unwrap();
+        let mut edit = acquire("a", 30);
+        edit.request_id = "automatic-edit".into();
+        edit.notify = false;
+        let ticket = store.acquire_lock(edit).await.unwrap();
+        assert_eq!(ticket.status, LockStatus::Acquired);
+        assert_eq!(ticket.request_id, "a");
+        assert!(ticket.notify);
+    }
+
+    #[tokio::test]
+    async fn abandoned_silent_waiters_are_cancelled_without_conversation_messages() {
+        let clock = Arc::new(AtomicI64::new(1000));
+        let store = setup(":memory:", clock.clone()).await;
+        store.acquire_lock(acquire("a", 600)).await.unwrap();
+        let mut waiter = acquire("b", 30);
+        waiter.notify = false;
+        assert_eq!(
+            store.acquire_lock(waiter).await.unwrap().status,
+            LockStatus::Waiting
+        );
+        clock.store(61_000, Ordering::SeqCst);
+        store.expire_locks().await.unwrap();
+        assert_eq!(
+            store
+                .lock_ticket("b".into(), "b".into())
+                .await
+                .unwrap()
+                .status,
+            LockStatus::Cancelled
+        );
+        assert!(inbox(&store, "b").await.is_empty());
+        assert_eq!(
+            store
+                .lock_ticket("a".into(), "a".into())
+                .await
+                .unwrap()
+                .status,
+            LockStatus::Acquired
+        );
     }
 
     #[tokio::test]

@@ -235,10 +235,30 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(installed["hooks"]["SessionStart"][0], other)
         self.assertEqual(len(installed["hooks"]["SessionStart"]), 2)
         self.assertEqual(installed["hooks"]["OtherEvent"], [other])
+        pre = installed["hooks"]["PreToolUse"][0]
+        self.assertEqual(pre["matcher"], "^apply_patch$")
+        self.assertGreater(pre["hooks"][0]["timeout"], 60)
+        self.assertEqual(installed["hooks"]["PostToolUse"][0]["matcher"], "^apply_patch$")
         self.assertEqual((self.root / "config.toml").read_text().count("trusted_hash"), 1)
         uninstall(self.args)
         self.assertEqual(json.loads((self.root / "hooks.json").read_text()), hooks)
         self.assertEqual((self.root / "config.toml").read_text(), config)
+
+    def test_upgrade_from_lifecycle_only_install_removes_only_owned_new_event_entries(self):
+        settings_path = self.root / "agent-hub/settings.json"
+        with patch.dict(sys.modules, {"websockets.sync.client": SimpleNamespace(unix_connect=Mock())}):
+            install(self.args)
+            document = json.loads((self.root / "hooks.json").read_text())
+            del document["hooks"]["PreToolUse"]
+            user_post = {"matcher": "Bash", "hooks": [{"type": "command", "command": "user-post"}]}
+            document["hooks"]["PostToolUse"] = [user_post]
+            (self.root / "hooks.json").write_text(json.dumps(document))
+            settings = json.loads(settings_path.read_text())
+            settings["added_events"] = ["SessionStart", "Stop", "SessionEnd"]
+            settings_path.write_text(json.dumps(settings))
+            install(self.args)
+        uninstall(self.args)
+        self.assertEqual(json.loads((self.root / "hooks.json").read_text()), {"hooks": {"PostToolUse": [user_post]}})
 
     def test_conflicting_mcp_configuration_is_preserved(self):
         config = '[mcp_servers.agent_hub]\ncommand="existing-server"\n'

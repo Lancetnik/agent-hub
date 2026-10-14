@@ -111,6 +111,7 @@ class Experiment:
         try:
             self.hub.start()
             install(self.args)
+            self.configure_hooks()
             trust = AppServer(self.codex, None, command=[self.codex, "app-server", "--listen", "stdio://"], environment=self.env)
             try:
                 initialize(trust)
@@ -138,6 +139,10 @@ class Experiment:
         except BaseException:
             self.__exit__(None, None, None)
             raise
+
+    def configure_hooks(self):
+        """Optional isolated fixture barriers, installed before trusting test-owned hooks."""
+
 
     def launch(self, role, fixture=None):
         cwd = self.root / role

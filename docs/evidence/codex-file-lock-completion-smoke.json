@@ -1,0 +1,75 @@
+{
+  "version": "codex-cli 0.162.1",
+  "orchestrator_thread_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c",
+  "worker_thread_id": "01a138e2-cb90-7c41-bd33-ac6b33d79073",
+  "worker_mcp_calls": 0,
+  "scenarios": [
+    "hook registration",
+    "automatic completion",
+    "same dialogue context",
+    "SessionEnd"
+  ],
+  "events": {
+    "worker": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a138e2-cb90-7c41-bd33-ac6b33d79073",
+        "thread_id": "01a138e2-cb90-7c41-bd33-ac6b33d79073"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a138e2-cb90-7c41-bd33-ac6b33d79073",
+        "turn_id": "01a138e2-cbcc-77a1-8bed-2ee29ae7041d",
+        "status": "completed",
+        "final_text": "WORKER_READY"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "hooks-idle",
+        "thread_id": "01a138e2-cb90-7c41-bd33-ac6b33d79073",
+        "queue_id": "01a138e2-ffe7-7283-bdc3-9ea19c2a7bb9"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a138e2-cb90-7c41-bd33-ac6b33d79073",
+        "turn_id": "01a138e2-ffe9-7c73-87b9-4e4883f09a82",
+        "status": "completed",
+        "final_text": "4"
+      }
+    ],
+    "orchestrator": [
+      {
+        "type": "bridge_connected",
+        "session_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c",
+        "thread_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c",
+        "turn_id": "01a138e2-cbcc-77a1-8bed-2ef880c4d447",
+        "status": "completed",
+        "final_text": "READY"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c",
+        "turn_id": "01a138e2-e2b4-7120-8321-38454afd839d",
+        "status": "completed",
+        "final_text": "WAITING"
+      },
+      {
+        "type": "message_accepted",
+        "message_id": "turn-result:[\"01a138e2-cb90-7c41-bd33-ac6b33d79073\",\"01a138e2-cb90-7c41-bd33-ac6b33d79073\",\"01a138e2-ffe9-7c73-87b9-4e4883f09a82\"]",
+        "thread_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c",
+        "queue_id": "01a138e3-0bd7-7b82-b7c0-bbc780da5ed1"
+      },
+      {
+        "type": "turn_completed",
+        "thread_id": "01a138e2-cb9c-7610-9bba-57a7a1e0345c",
+        "turn_id": "01a138e3-0bd7-7b82-b7c0-bbe9f2f28cd9",
+        "status": "completed",
+        "final_text": "41"
+      }
+    ]
+  }
+}
